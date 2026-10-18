@@ -1,6 +1,6 @@
 erDiagram
     ROLE ||--o{ USER_ACCOUNT : "assigns"
-    USER_ACCOUNT ||--o| TOTP_ENROLLMENT : "enrolls"
+    USER_ACCOUNT ||--o| TOTP_ENROLLMENT : "links"
     USER_ACCOUNT ||--o{ SESSION : "opens"
     USER_ACCOUNT ||--o{ AUDIT_ENTRY : "generates"
     USER_ACCOUNT ||--o{ PRICE_CHANGE_AUDIT : "performs"
@@ -10,9 +10,9 @@ erDiagram
     BACKUP_FILE ||--o{ RESTORE_PROCESS : "is used in"
     USER_ACCOUNT ||--o{ RESTORE_PROCESS : "executes"
 
-    PRODUCT ||--o{ PRICE_CHANGE_AUDIT : "logs"
+    PRODUCT ||--o{ PRICE_CHANGE_AUDIT : "records"
     PRODUCT ||--o{ QUOTATION_ITEM : "is quoted in"
-    PRODUCT ||--o{ WORK_ORDER_ITEM : "is ordered in"
+    PRODUCT ||--o{ WORK_ORDER_ITEM : "is requested in"
 
     CUSTOMER ||--o{ QUOTATION : "requests"
     CUSTOMER ||--o{ WORK_ORDER : "orders"
@@ -99,10 +99,10 @@ erDiagram
 
     CUSTOMER {
         int id PK
-        string tax_id UK "NIT or document"
-        string customer_type "NATURAL, LEGAL"
-        string full_name "natural person"
-        string business_name "legal person"
+        string tax_id UK "Tax ID or ID document"
+        string customer_type "INDIVIDUAL, LEGAL_ENTITY"
+        string full_name "individual"
+        string business_name "legal entity"
         string status "ACTIVE, INACTIVE"
     }
 
@@ -134,7 +134,7 @@ erDiagram
         int id PK
         bigint order_number UK
         int customer_id FK
-        string status "PENDING, REGISTERED_IN_SIIGO, RECONCILED"
+        string status "PENDING, REGISTERED_SIIGO, RECONCILED"
         date agreed_delivery_date
     }
 
@@ -147,6 +147,7 @@ erDiagram
 
     EXPORT_BATCH {
         int id PK
+        uuid created_by FK
         string file_name
         datetime created_at
     }
