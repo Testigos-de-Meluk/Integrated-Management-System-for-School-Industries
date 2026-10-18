@@ -1,2 +1,3 @@
-# Sistema-Integral-de-Gestion-para-Industrias-Escolares
-Sistema integral de gestión empresarial para optimizar procesos comerciales, productivos, financieros y administrativos.
+# Integrated-Management-System-for-School-Industries
+
+Comprehensive enterprise management system to optimize commercial, production, financial, and administrative processes.
