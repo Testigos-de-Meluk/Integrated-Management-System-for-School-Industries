@@ -1,0 +1,161 @@
+erDiagram
+    ROLE ||--o{ USER_ACCOUNT : "asigna"
+    USER_ACCOUNT ||--o| TOTP_ENROLLMENT : "vincula"
+    USER_ACCOUNT ||--o{ SESSION : "abre"
+    USER_ACCOUNT ||--o{ AUDIT_ENTRY : "genera"
+    USER_ACCOUNT ||--o{ PRICE_CHANGE_AUDIT : "realiza"
+    USER_ACCOUNT ||--o{ COMMERCIAL_NOTE : "escribe"
+    USER_ACCOUNT ||--o{ EXPORT_BATCH : "crea"
+
+    BACKUP_FILE ||--o{ RESTORE_PROCESS : "se usa en"
+    USER_ACCOUNT ||--o{ RESTORE_PROCESS : "ejecuta"
+
+    PRODUCT ||--o{ PRICE_CHANGE_AUDIT : "registra"
+    PRODUCT ||--o{ QUOTATION_ITEM : "se cotiza en"
+    PRODUCT ||--o{ WORK_ORDER_ITEM : "se pide en"
+
+    CUSTOMER ||--o{ QUOTATION : "solicita"
+    CUSTOMER ||--o{ WORK_ORDER : "ordena"
+    CUSTOMER ||--o{ COMMERCIAL_NOTE : "tiene"
+
+    QUOTATION ||--|{ QUOTATION_ITEM : "contiene"
+    WORK_ORDER ||--|{ WORK_ORDER_ITEM : "contiene"
+
+    QUOTATION ||--o| PROCESSING_QUEUE_ENTRY : "se encola como"
+    EXPORT_BATCH ||--|{ PROCESSING_QUEUE_ENTRY : "agrupa"
+
+    ROLE {
+        int id PK
+        string type "SUPERADMIN, ADMIN, OPERADOR"
+        string permissions
+    }
+
+    USER_ACCOUNT {
+        uuid id PK
+        string full_name
+        string email UK
+        string password_hash
+        string status "ACTIVO, INACTIVO, BLOQUEADO"
+        int role_id FK
+    }
+
+    TOTP_ENROLLMENT {
+        int id PK
+        uuid user_id FK, UK
+        string secret
+        datetime expires_at
+    }
+
+    SESSION {
+        uuid id PK
+        uuid user_id FK
+        string status "ACTIVA, CERRADA, EXPIRADA"
+        datetime last_activity_at
+    }
+
+    AUDIT_ENTRY {
+        int id PK
+        uuid user_id FK
+        string action
+        string entity_id
+        datetime created_at
+    }
+
+    BACKUP_FILE {
+        int id PK
+        string type "DIARIO, SEMANAL, MENSUAL"
+        string sha256_hash
+        string integrity_status "OK, CORRUPTO"
+        decimal size_mb
+        datetime created_at
+    }
+
+    RESTORE_PROCESS {
+        int id PK
+        int backup_id FK
+        uuid executed_by FK
+        string status "PRUEBA, EXITOSA, FALLIDA, CONFIRMADA"
+        string verification
+    }
+
+    PRODUCT {
+        int id PK
+        string code UK
+        string name
+        string unit_of_measure
+        decimal official_price
+        string status "ACTIVO, INACTIVO"
+    }
+
+    PRICE_CHANGE_AUDIT {
+        int id PK
+        int product_id FK
+        uuid user_id FK
+        decimal previous_price
+        decimal new_price
+        string support_document
+        datetime changed_at
+    }
+
+    CUSTOMER {
+        int id PK
+        string tax_id UK "NIT o documento"
+        string customer_type "NATURAL, JURIDICA"
+        string full_name "persona natural"
+        string business_name "persona juridica"
+        string status "ACTIVO, INACTIVO"
+    }
+
+    COMMERCIAL_NOTE {
+        int id PK
+        int customer_id FK
+        uuid author_id FK
+        string content
+        datetime created_at
+    }
+
+    QUOTATION {
+        int id PK
+        int customer_id FK "nullable"
+        string status "PENDIENTE, MODIFICADA, APROBADA, RECHAZADA"
+        decimal total_amount
+        datetime created_at
+    }
+
+    QUOTATION_ITEM {
+        int id PK
+        int quotation_id FK
+        int product_id FK
+        int quantity
+        decimal unit_price
+    }
+
+    WORK_ORDER {
+        int id PK
+        bigint order_number UK
+        int customer_id FK
+        string status "PENDIENTE, REGISTRADA_SIIGO, CONCILIADA"
+        date agreed_delivery_date
+    }
+
+    WORK_ORDER_ITEM {
+        int id PK
+        int work_order_id FK
+        int product_id FK
+        int quantity
+    }
+
+    EXPORT_BATCH {
+        int id PK
+        uuid created_by FK
+        string file_name
+        datetime created_at
+    }
+
+    PROCESSING_QUEUE_ENTRY {
+        int id PK
+        int quotation_id FK, UK
+        int export_batch_id FK "nullable hasta exportar"
+        string export_status "PENDIENTE, EXPORTADA"
+        datetime enqueued_at
+    }
