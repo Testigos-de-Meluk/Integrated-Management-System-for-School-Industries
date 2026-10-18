@@ -1,32 +1,32 @@
 erDiagram
-    ROLE ||--o{ USER_ACCOUNT : "asigna"
-    USER_ACCOUNT ||--o| TOTP_ENROLLMENT : "vincula"
-    USER_ACCOUNT ||--o{ SESSION : "abre"
-    USER_ACCOUNT ||--o{ AUDIT_ENTRY : "genera"
-    USER_ACCOUNT ||--o{ PRICE_CHANGE_AUDIT : "realiza"
-    USER_ACCOUNT ||--o{ COMMERCIAL_NOTE : "escribe"
-    USER_ACCOUNT ||--o{ EXPORT_BATCH : "crea"
+    ROLE ||--o{ USER_ACCOUNT : "assigns"
+    USER_ACCOUNT ||--o| TOTP_ENROLLMENT : "enrolls"
+    USER_ACCOUNT ||--o{ SESSION : "opens"
+    USER_ACCOUNT ||--o{ AUDIT_ENTRY : "generates"
+    USER_ACCOUNT ||--o{ PRICE_CHANGE_AUDIT : "performs"
+    USER_ACCOUNT ||--o{ COMMERCIAL_NOTE : "writes"
+    USER_ACCOUNT ||--o{ EXPORT_BATCH : "creates"
 
-    BACKUP_FILE ||--o{ RESTORE_PROCESS : "se usa en"
-    USER_ACCOUNT ||--o{ RESTORE_PROCESS : "ejecuta"
+    BACKUP_FILE ||--o{ RESTORE_PROCESS : "is used in"
+    USER_ACCOUNT ||--o{ RESTORE_PROCESS : "executes"
 
-    PRODUCT ||--o{ PRICE_CHANGE_AUDIT : "registra"
-    PRODUCT ||--o{ QUOTATION_ITEM : "se cotiza en"
-    PRODUCT ||--o{ WORK_ORDER_ITEM : "se pide en"
+    PRODUCT ||--o{ PRICE_CHANGE_AUDIT : "logs"
+    PRODUCT ||--o{ QUOTATION_ITEM : "is quoted in"
+    PRODUCT ||--o{ WORK_ORDER_ITEM : "is ordered in"
 
-    CUSTOMER ||--o{ QUOTATION : "solicita"
-    CUSTOMER ||--o{ WORK_ORDER : "ordena"
-    CUSTOMER ||--o{ COMMERCIAL_NOTE : "tiene"
+    CUSTOMER ||--o{ QUOTATION : "requests"
+    CUSTOMER ||--o{ WORK_ORDER : "orders"
+    CUSTOMER ||--o{ COMMERCIAL_NOTE : "has"
 
-    QUOTATION ||--|{ QUOTATION_ITEM : "contiene"
-    WORK_ORDER ||--|{ WORK_ORDER_ITEM : "contiene"
+    QUOTATION ||--|{ QUOTATION_ITEM : "contains"
+    WORK_ORDER ||--|{ WORK_ORDER_ITEM : "contains"
 
-    QUOTATION ||--o| PROCESSING_QUEUE_ENTRY : "se encola como"
-    EXPORT_BATCH ||--|{ PROCESSING_QUEUE_ENTRY : "agrupa"
+    QUOTATION ||--o| PROCESSING_QUEUE_ENTRY : "is enqueued as"
+    EXPORT_BATCH ||--|{ PROCESSING_QUEUE_ENTRY : "groups"
 
     ROLE {
         int id PK
-        string type "SUPERADMIN, ADMIN, OPERADOR"
+        string type "SUPERADMIN, ADMIN, OPERATOR"
         string permissions
     }
 
@@ -35,7 +35,7 @@ erDiagram
         string full_name
         string email UK
         string password_hash
-        string status "ACTIVO, INACTIVO, BLOQUEADO"
+        string status "ACTIVE, INACTIVE, BLOCKED"
         int role_id FK
     }
 
@@ -49,7 +49,7 @@ erDiagram
     SESSION {
         uuid id PK
         uuid user_id FK
-        string status "ACTIVA, CERRADA, EXPIRADA"
+        string status "ACTIVE, CLOSED, EXPIRED"
         datetime last_activity_at
     }
 
@@ -63,9 +63,9 @@ erDiagram
 
     BACKUP_FILE {
         int id PK
-        string type "DIARIO, SEMANAL, MENSUAL"
+        string type "DAILY, WEEKLY, MONTHLY"
         string sha256_hash
-        string integrity_status "OK, CORRUPTO"
+        string integrity_status "OK, CORRUPT"
         decimal size_mb
         datetime created_at
     }
@@ -74,7 +74,7 @@ erDiagram
         int id PK
         int backup_id FK
         uuid executed_by FK
-        string status "PRUEBA, EXITOSA, FALLIDA, CONFIRMADA"
+        string status "TEST, SUCCESSFUL, FAILED, CONFIRMED"
         string verification
     }
 
@@ -84,7 +84,7 @@ erDiagram
         string name
         string unit_of_measure
         decimal official_price
-        string status "ACTIVO, INACTIVO"
+        string status "ACTIVE, INACTIVE"
     }
 
     PRICE_CHANGE_AUDIT {
@@ -99,11 +99,11 @@ erDiagram
 
     CUSTOMER {
         int id PK
-        string tax_id UK "NIT o documento"
-        string customer_type "NATURAL, JURIDICA"
-        string full_name "persona natural"
-        string business_name "persona juridica"
-        string status "ACTIVO, INACTIVO"
+        string tax_id UK "NIT or document"
+        string customer_type "NATURAL, LEGAL"
+        string full_name "natural person"
+        string business_name "legal person"
+        string status "ACTIVE, INACTIVE"
     }
 
     COMMERCIAL_NOTE {
@@ -117,7 +117,7 @@ erDiagram
     QUOTATION {
         int id PK
         int customer_id FK "nullable"
-        string status "PENDIENTE, MODIFICADA, APROBADA, RECHAZADA"
+        string status "PENDING, MODIFIED, APPROVED, REJECTED"
         decimal total_amount
         datetime created_at
     }
@@ -134,7 +134,7 @@ erDiagram
         int id PK
         bigint order_number UK
         int customer_id FK
-        string status "PENDIENTE, REGISTRADA_SIIGO, CONCILIADA"
+        string status "PENDING, REGISTERED_IN_SIIGO, RECONCILED"
         date agreed_delivery_date
     }
 
@@ -147,7 +147,6 @@ erDiagram
 
     EXPORT_BATCH {
         int id PK
-        uuid created_by FK
         string file_name
         datetime created_at
     }
@@ -155,7 +154,7 @@ erDiagram
     PROCESSING_QUEUE_ENTRY {
         int id PK
         int quotation_id FK, UK
-        int export_batch_id FK "nullable hasta exportar"
-        string export_status "PENDIENTE, EXPORTADA"
+        int export_batch_id FK "nullable until exported"
+        string export_status "PENDING, EXPORTED"
         datetime enqueued_at
     }
