@@ -68,7 +68,7 @@ Integrated-Management-System-for-School-Industries/
 
 | Path | Description |
 | --- | --- |
-| `Design.pdf` | Design I report. |
+| `Design.pdf` | Design report. |
 | `Architecture Diagram/Architecture_Diagram_Testigos_De_Meluk.drawio` | Editable software architecture diagram (draw.io). |
 | `Architecture Diagram/Architecture_Diagram_Testigos_De_Meluk.pdf` | Software architecture diagram in PDF format. |
 | `Business Model Processes/Big ones/` | BPMN models of the larger business processes: Quote Request and Approval, Work Order Management, and Customer Management. |
