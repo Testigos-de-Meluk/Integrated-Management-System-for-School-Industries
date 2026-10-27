@@ -23,6 +23,21 @@ Integrated-Management-System-for-School-Industries/
 │   │   ├── User_Story_Map_Testigos_De_Meluk.drawio
 │   │   └── User_Story_Map_Testigos_De_Meluk.pdf
 │   └── Workshop-2/
+│       ├── Architecture Diagram/
+│       │   ├── Architecture_Diagram_Testigos_De_Meluk.drawio
+│       │   └── Architecture_Diagram_Testigos_De_Meluk.pdf
+│       ├── Business Model Processes/
+│       │   ├── Big ones/
+│       │   │   ├── M2_01_Quote_Request_and_Approval.bpmn
+│       │   │   ├── M2_03_Work_Order_Management.bpmn
+│       │   │   └── M2_05_Customer_Management.bpmn
+│       │   └── Small ones/
+│       │       ├── M1_03_Session_Control.bpmn
+│       │       ├── M1_04_Role_Based_Access_Control.bpmn
+│       │       ├── M1_05_Automated_Backup.bpmn
+│       │       ├── M2_02_Siigo_Pyme_Export.bpmn
+│       │       ├── M2_04_Product_Catalog_Management.bpmn
+│       │       └── M2_06_Customer_Notes.bpmn
 │       ├── Class Diagram/
 │       │   └── UML_Class_Diagrams_Testigos_de_Meluk.drawio
 │       ├── Mockups/
@@ -36,7 +51,7 @@ Integrated-Management-System-for-School-Industries/
 │       ├── Relational Database Model/
 │       │   ├── Relational Database Model.mmd
 │       │   └── Relational Database Model.pdf
-│       └── Design I.pdf
+│       └── Design.pdf
 ├── .gitignore
 └── README.md
 ```
@@ -53,7 +68,11 @@ Integrated-Management-System-for-School-Industries/
 
 | Path | Description |
 | --- | --- |
-| `Design I.pdf` | Design I report. |
+| `Design.pdf` | Design I report. |
+| `Architecture Diagram/Architecture_Diagram_Testigos_De_Meluk.drawio` | Editable software architecture diagram (draw.io). |
+| `Architecture Diagram/Architecture_Diagram_Testigos_De_Meluk.pdf` | Software architecture diagram in PDF format. |
+| `Business Model Processes/Big ones/` | BPMN models of the larger business processes: Quote Request and Approval, Work Order Management, and Customer Management. |
+| `Business Model Processes/Small ones/` | BPMN models of the smaller processes: Session Control, Role-Based Access Control, Automated Backup, Siigo Pyme Export, Product Catalog Management, and Customer Notes. |
 | `Class Diagram/UML_Class_Diagrams_Testigos_de_Meluk.drawio` | Editable UML class diagrams (draw.io). |
 | `Mockups/` | Interface mockups: Backups, Catalog, Export Siigo, Login, Other views, Quotation, and Work orders. |
 | `Relational Database Model/Relational Database Model.mmd` | Editable relational database model (Mermaid). |
