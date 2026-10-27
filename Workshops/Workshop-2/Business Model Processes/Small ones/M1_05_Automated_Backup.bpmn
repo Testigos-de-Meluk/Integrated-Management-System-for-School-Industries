@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="bpmn-js (https://demo.bpmn.io)" exporterVersion="18.31.1">
+  <bpmn:dataStore id="DataStore_BackupInv" name="Backup inventory" />
+  <bpmn:error id="Error_Export" name="Flat file generation failed" errorCode="EXPORT_FAILED" />
+  <bpmn:collaboration id="Collab_1">
+    <bpmn:participant id="Pool_Ext" name="External secure storage" />
+    <bpmn:participant id="Pool_Empresa" name="Platform" processRef="Proc_Empresa" />
+    <bpmn:participant id="Pool_Admins" name="Superadministrador and Administrador (email recipients)" />
+    <bpmn:messageFlow id="m363" sourceRef="bk_4" targetRef="Pool_Ext" />
+    <bpmn:messageFlow id="m364" sourceRef="bk_n1" targetRef="Pool_Admins" />
+  </bpmn:collaboration>
+  <bpmn:process id="Proc_Empresa" isExecutable="false">
+    <bpmn:startEvent id="bk_s" name="Every day at 18:00">
+      <bpmn:documentation>RF-01-07: automatic differential backup every day at 18:00.</bpmn:documentation>
+      <bpmn:outgoing>f352</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="bk_s_ted">
+        <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">0 0 18 * * ?</bpmn:timeCycle>
+      </bpmn:timerEventDefinition>
+    </bpmn:startEvent>
+    <bpmn:subProcess id="bk_sp" name="Run differential backup">
+      <bpmn:documentation>Covers the PostgreSQL database and server-stored files (generated quote PDFs).</bpmn:documentation>
+      <bpmn:incoming>f352</bpmn:incoming>
+      <bpmn:outgoing>f358</bpmn:outgoing>
+      <bpmn:startEvent id="bk_ss">
+        <bpmn:outgoing>f353</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:serviceTask id="bk_1" name="Create&#10;differential&#10;backup: PostgreSQL database and server files (quote PDFs)">
+        <bpmn:documentation>RF-01-07. Note: the requirement text still lists "support documents for price changes"; with no official prices those documents no longer exist.</bpmn:documentation>
+        <bpmn:incoming>f353</bpmn:incoming>
+        <bpmn:outgoing>f354</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:serviceTask id="bk_2" name="Encrypt the backup (AES-256)">
+        <bpmn:documentation>RNF-01-04: backups are stored encrypted.</bpmn:documentation>
+        <bpmn:incoming>f354</bpmn:incoming>
+        <bpmn:outgoing>f355</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:serviceTask id="bk_3" name="Compute the SHA-256 hash signature">
+        <bpmn:documentation>RF-01-08: integrity status is verified with this hash.</bpmn:documentation>
+        <bpmn:incoming>f355</bpmn:incoming>
+        <bpmn:outgoing>f356</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:sendTask id="bk_4" name="Store the&#10;encrypted backup in the external location">
+        <bpmn:documentation>RF-01-07: secure external location or device.</bpmn:documentation>
+        <bpmn:incoming>f356</bpmn:incoming>
+        <bpmn:outgoing>f357</bpmn:outgoing>
+      </bpmn:sendTask>
+      <bpmn:endEvent id="bk_se">
+        <bpmn:incoming>f357</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="f353" sourceRef="bk_ss" targetRef="bk_1" />
+      <bpmn:sequenceFlow id="f354" sourceRef="bk_1" targetRef="bk_2" />
+      <bpmn:sequenceFlow id="f355" sourceRef="bk_2" targetRef="bk_3" />
+      <bpmn:sequenceFlow id="f356" sourceRef="bk_3" targetRef="bk_4" />
+      <bpmn:sequenceFlow id="f357" sourceRef="bk_4" targetRef="bk_se" />
+    </bpmn:subProcess>
+    <bpmn:serviceTask id="bk_5" name="Register the&#10;backup: date/time, size, type and hash">
+      <bpmn:documentation>RF-01-08: feeds the backup inventory.</bpmn:documentation>
+      <bpmn:incoming>f358</bpmn:incoming>
+      <bpmn:outgoing>f359</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="dbk1">
+        <bpmn:targetRef>ds_bi</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="bk_6" name="Apply version rotation and purge expired copies">
+      <bpmn:documentation>RF-01-07: daily backups for 7 days, a weekly backup at the end of the last month, a monthly backup during the last year.</bpmn:documentation>
+      <bpmn:incoming>f359</bpmn:incoming>
+      <bpmn:outgoing>f360</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="dbk2">
+        <bpmn:targetRef>ds_bi2</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="bk_end" name="Backup completed">
+      <bpmn:incoming>f360</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sendTask id="bk_n1" name="Email the administrators about the backup failure">
+      <bpmn:documentation>RF-01-07. Email to Superadministrador and Administrador: "Fallo en la ejecución del respaldo automático del [Fecha]".</bpmn:documentation>
+      <bpmn:incoming>f361</bpmn:incoming>
+      <bpmn:outgoing>f362</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="bk_end2" name="Backup failed (administrators notified)">
+      <bpmn:incoming>f362</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:dataStoreReference id="ds_bi" name="Backup inventory" dataStoreRef="DataStore_BackupInv" />
+    <bpmn:dataStoreReference id="ds_bi2" name="Backup inventory" dataStoreRef="DataStore_BackupInv" />
+    <bpmn:boundaryEvent id="bk_be" attachedToRef="bk_sp">
+      <bpmn:documentation>Any failure or interruption of the backup process.</bpmn:documentation>
+      <bpmn:outgoing>f361</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="bk_be_eed" errorRef="Error_Export" />
+    </bpmn:boundaryEvent>
+    <bpmn:sequenceFlow id="f352" sourceRef="bk_s" targetRef="bk_sp" />
+    <bpmn:sequenceFlow id="f358" sourceRef="bk_sp" targetRef="bk_5" />
+    <bpmn:sequenceFlow id="f359" sourceRef="bk_5" targetRef="bk_6" />
+    <bpmn:sequenceFlow id="f360" sourceRef="bk_6" targetRef="bk_end" />
+    <bpmn:sequenceFlow id="f361" name="Backup fails" sourceRef="bk_be" targetRef="bk_n1" />
+    <bpmn:sequenceFlow id="f362" sourceRef="bk_n1" targetRef="bk_end2" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collab_1">
+      <bpmndi:BPMNShape id="Pool_Ext_di" bpmnElement="Pool_Ext" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="1600" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Pool_Empresa_di" bpmnElement="Pool_Empresa" isHorizontal="true">
+        <dc:Bounds x="160" y="180" width="1600" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="bk_s_di" bpmnElement="bk_s">
+        <dc:Bounds x="282" y="342" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="245" y="381" width="110" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="bk_sp_di" bpmnElement="bk_sp" isExpanded="true">
+        <dc:Bounds x="390" y="250" width="860" height="220" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="bk_ss_di" bpmnElement="bk_ss">
+        <dc:Bounds x="432" y="342" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="bk_1_di" bpmnElement="bk_1">
+        <dc:Bounds x="515" y="322" width="130" height="76" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="bk_2_di" bpmnElement="bk_2">
+        <dc:Bounds x="665" y="322" width="130" height="76" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="bk_3_di" bpmnElement="bk_3">
+        <dc:Bounds x="815" y="322" width="130" height="76" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="bk_4_di" bpmnElement="bk_4">
+        <dc:Bounds x="965" y="322" width="130" height="76" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="bk_se_di" bpmnElement="bk_se">
+        <dc:Bounds x="1152" y="342" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="f353_di" bpmnElement="f353">
+        <di:waypoint x="468" y="360" />
+        <di:waypoint x="515" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f354_di" bpmnElement="f354">
+        <di:waypoint x="645" y="360" />
+        <di:waypoint x="665" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f355_di" bpmnElement="f355">
+        <di:waypoint x="795" y="360" />
+        <di:waypoint x="815" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f356_di" bpmnElement="f356">
+        <di:waypoint x="945" y="360" />
+        <di:waypoint x="965" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f357_di" bpmnElement="f357">
+        <di:waypoint x="1095" y="360" />
+        <di:waypoint x="1152" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="bk_5_di" bpmnElement="bk_5">
+        <dc:Bounds x="1295" y="322" width="130" height="76" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="bk_6_di" bpmnElement="bk_6">
+        <dc:Bounds x="1455" y="322" width="130" height="76" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="bk_end_di" bpmnElement="bk_end">
+        <dc:Bounds x="1642" y="342" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1605" y="381" width="110" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="bk_n1_di" bpmnElement="bk_n1">
+        <dc:Bounds x="755" y="542" width="130" height="76" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="bk_end2_di" bpmnElement="bk_end2">
+        <dc:Bounds x="972" y="562" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="935" y="601" width="110" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ds_bi_di" bpmnElement="ds_bi">
+        <dc:Bounds x="1335" y="455" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1305" y="508" width="110" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ds_bi2_di" bpmnElement="ds_bi2">
+        <dc:Bounds x="1495" y="455" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1465" y="508" width="110" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="bk_be_di" bpmnElement="bk_be">
+        <dc:Bounds x="802" y="452" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="f352_di" bpmnElement="f352">
+        <di:waypoint x="318" y="360" />
+        <di:waypoint x="390" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f358_di" bpmnElement="f358">
+        <di:waypoint x="1250" y="360" />
+        <di:waypoint x="1295" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f359_di" bpmnElement="f359">
+        <di:waypoint x="1425" y="360" />
+        <di:waypoint x="1455" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f360_di" bpmnElement="f360">
+        <di:waypoint x="1585" y="360" />
+        <di:waypoint x="1642" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f361_di" bpmnElement="f361">
+        <di:waypoint x="820" y="488" />
+        <di:waypoint x="820" y="542" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="826" y="494" width="92" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f362_di" bpmnElement="f362">
+        <di:waypoint x="885" y="580" />
+        <di:waypoint x="972" y="580" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Pool_Admins_di" bpmnElement="Pool_Admins" isHorizontal="true">
+        <dc:Bounds x="160" y="700" width="1600" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="dbk1_di" bpmnElement="dbk1">
+        <di:waypoint x="1360" y="398" />
+        <di:waypoint x="1360" y="455" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dbk2_di" bpmnElement="dbk2">
+        <di:waypoint x="1520" y="398" />
+        <di:waypoint x="1520" y="455" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="m363_di" bpmnElement="m363">
+        <di:waypoint x="1030" y="322" />
+        <di:waypoint x="1030" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="m364_di" bpmnElement="m364">
+        <di:waypoint x="820" y="618" />
+        <di:waypoint x="820" y="700" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

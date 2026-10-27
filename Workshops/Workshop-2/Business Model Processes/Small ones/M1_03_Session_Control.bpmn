@@ -1,0 +1,416 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="bpmn-js (https://demo.bpmn.io)" exporterVersion="18.31.1">
+  <bpmn:dataStore id="DataStore_Sessions" name="Active sessions" />
+  <bpmn:collaboration id="Collab_1">
+    <bpmn:participant id="Pool_UserW" name="User" processRef="Proc_Cliente" />
+    <bpmn:participant id="Pool_Empresa" name="Platform" processRef="Proc_Empresa" />
+    <bpmn:messageFlow id="m332" sourceRef="s_u1" targetRef="ss_ea" />
+    <bpmn:messageFlow id="m333" sourceRef="s_u2" targetRef="ss_en" />
+    <bpmn:messageFlow id="m334" sourceRef="ss_4" targetRef="s_eexp" />
+    <bpmn:messageFlow id="m335" sourceRef="ss_6" targetRef="s_enew" />
+  </bpmn:collaboration>
+  <bpmn:process id="Proc_Cliente" isExecutable="false">
+    <bpmn:startEvent id="s_u0" name="User authenticated">
+      <bpmn:outgoing>f309</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:exclusiveGateway id="s_gm">
+      <bpmn:incoming>f309</bpmn:incoming>
+      <bpmn:incoming>f312</bpmn:incoming>
+      <bpmn:outgoing>f310</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="s_gx" name="User action?">
+      <bpmn:incoming>f310</bpmn:incoming>
+      <bpmn:outgoing>f311</bpmn:outgoing>
+      <bpmn:outgoing>f313</bpmn:outgoing>
+      <bpmn:outgoing>f314</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:intermediateCatchEvent id="s_eexp" name="Redirected: session expired">
+      <bpmn:incoming>f313</bpmn:incoming>
+      <bpmn:outgoing>f316</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="s_eexp_med" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:endEvent id="s_uend1" name="Back at the login screen (inactivity)">
+      <bpmn:incoming>f316</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:userTask id="s_u2" name="Log in on another device">
+      <bpmn:documentation>RF-01-05</bpmn:documentation>
+      <bpmn:incoming>f314</bpmn:incoming>
+      <bpmn:outgoing>f315</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="s_u1" name="Use the platform (clicks and scrolls)">
+      <bpmn:documentation>RF-01-06: any click or scroll counts as activity and restarts the inactivity period.</bpmn:documentation>
+      <bpmn:incoming>f311</bpmn:incoming>
+      <bpmn:outgoing>f312</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:intermediateCatchEvent id="s_enew" name="Redirected: new login on another device">
+      <bpmn:incoming>f315</bpmn:incoming>
+      <bpmn:outgoing>f317</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="s_enew_med" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:endEvent id="s_uend2" name="Back at the login screen (new login)">
+      <bpmn:incoming>f317</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="f309" sourceRef="s_u0" targetRef="s_gm" />
+    <bpmn:sequenceFlow id="f312" sourceRef="s_u1" targetRef="s_gm" />
+    <bpmn:sequenceFlow id="f310" sourceRef="s_gm" targetRef="s_gx" />
+    <bpmn:sequenceFlow id="f311" name="Interacts" sourceRef="s_gx" targetRef="s_u1" />
+    <bpmn:sequenceFlow id="f313" name="Stops interacting" sourceRef="s_gx" targetRef="s_eexp" />
+    <bpmn:sequenceFlow id="f314" name="Logs in on another device" sourceRef="s_gx" targetRef="s_u2" />
+    <bpmn:sequenceFlow id="f316" sourceRef="s_eexp" targetRef="s_uend1" />
+    <bpmn:sequenceFlow id="f315" sourceRef="s_u2" targetRef="s_enew" />
+    <bpmn:sequenceFlow id="f317" sourceRef="s_enew" targetRef="s_uend2" />
+  </bpmn:process>
+  <bpmn:process id="Proc_Empresa" isExecutable="false">
+    <bpmn:startEvent id="ss_s" name="User authenticated (new login)">
+      <bpmn:documentation>Triggered by a successful login (M1_01).</bpmn:documentation>
+      <bpmn:outgoing>f318</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="ss_1" name="Invalidate any previous active session of the account">
+      <bpmn:documentation>RF-01-05, HU 1.5: only one active session per account.</bpmn:documentation>
+      <bpmn:incoming>f318</bpmn:incoming>
+      <bpmn:outgoing>f319</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="dss1">
+        <bpmn:targetRef>ds_sess</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="ss_2" name="Register the new active session">
+      <bpmn:documentation>RF-01-05</bpmn:documentation>
+      <bpmn:incoming>f319</bpmn:incoming>
+      <bpmn:outgoing>f320</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="dss2">
+        <bpmn:targetRef>ds_sess</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="ss_gm">
+      <bpmn:incoming>f320</bpmn:incoming>
+      <bpmn:incoming>f325</bpmn:incoming>
+      <bpmn:outgoing>f321</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="ss_3" name="Invalidate the session tokens">
+      <bpmn:documentation>RF-01-06</bpmn:documentation>
+      <bpmn:incoming>f326</bpmn:incoming>
+      <bpmn:outgoing>f327</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sendTask id="ss_4" name="Redirect to&#10;login: Session expired due to inactivity">
+      <bpmn:documentation>RF-01-06</bpmn:documentation>
+      <bpmn:incoming>f327</bpmn:incoming>
+      <bpmn:outgoing>f328</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="ss_end1" name="Session closed by inactivity">
+      <bpmn:incoming>f328</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:intermediateCatchEvent id="ss_en" name="New login on another device">
+      <bpmn:documentation>RF-01-05: a successful new login invalidates the previous session.</bpmn:documentation>
+      <bpmn:incoming>f324</bpmn:incoming>
+      <bpmn:outgoing>f329</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="ss_en_med" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:serviceTask id="ss_5" name="Invalidate this session">
+      <bpmn:documentation>RF-01-05</bpmn:documentation>
+      <bpmn:incoming>f329</bpmn:incoming>
+      <bpmn:outgoing>f330</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sendTask id="ss_6" name="Redirect to&#10;login: new login on another device">
+      <bpmn:documentation>RF-01-05, HU 1.5. Message: "Su sesión ha sido cerrada debido a un nuevo inicio de sesión en otro dispositivo".</bpmn:documentation>
+      <bpmn:incoming>f330</bpmn:incoming>
+      <bpmn:outgoing>f331</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="ss_end2" name="Session closed by new login">
+      <bpmn:incoming>f331</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:dataStoreReference id="ds_sess" name="Active sessions" dataStoreRef="DataStore_Sessions" />
+    <bpmn:eventBasedGateway id="ss_eb">
+      <bpmn:incoming>f321</bpmn:incoming>
+      <bpmn:outgoing>f322</bpmn:outgoing>
+      <bpmn:outgoing>f323</bpmn:outgoing>
+      <bpmn:outgoing>f324</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <bpmn:intermediateCatchEvent id="ss_ea" name="User activity (click or scroll)">
+      <bpmn:documentation>RF-01-06: any click or scroll restarts the inactivity period.</bpmn:documentation>
+      <bpmn:incoming>f322</bpmn:incoming>
+      <bpmn:outgoing>f325</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="ss_ea_med" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="ss_et" name="15 minutes without activity">
+      <bpmn:documentation>RF-01-06, HU 1.6: continuous 15-minute inactivity.</bpmn:documentation>
+      <bpmn:incoming>f323</bpmn:incoming>
+      <bpmn:outgoing>f326</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="ss_et_ted">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT15M</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:sequenceFlow id="f318" sourceRef="ss_s" targetRef="ss_1" />
+    <bpmn:sequenceFlow id="f319" sourceRef="ss_1" targetRef="ss_2" />
+    <bpmn:sequenceFlow id="f320" sourceRef="ss_2" targetRef="ss_gm" />
+    <bpmn:sequenceFlow id="f325" sourceRef="ss_ea" targetRef="ss_gm" />
+    <bpmn:sequenceFlow id="f321" sourceRef="ss_gm" targetRef="ss_eb" />
+    <bpmn:sequenceFlow id="f326" sourceRef="ss_et" targetRef="ss_3" />
+    <bpmn:sequenceFlow id="f327" sourceRef="ss_3" targetRef="ss_4" />
+    <bpmn:sequenceFlow id="f328" sourceRef="ss_4" targetRef="ss_end1" />
+    <bpmn:sequenceFlow id="f324" sourceRef="ss_eb" targetRef="ss_en" />
+    <bpmn:sequenceFlow id="f329" sourceRef="ss_en" targetRef="ss_5" />
+    <bpmn:sequenceFlow id="f330" sourceRef="ss_5" targetRef="ss_6" />
+    <bpmn:sequenceFlow id="f331" sourceRef="ss_6" targetRef="ss_end2" />
+    <bpmn:sequenceFlow id="f322" sourceRef="ss_eb" targetRef="ss_ea" />
+    <bpmn:sequenceFlow id="f323" sourceRef="ss_eb" targetRef="ss_et" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collab_1">
+      <bpmndi:BPMNShape id="Pool_UserW_di" bpmnElement="Pool_UserW" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="1500" height="270" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_u0_di" bpmnElement="s_u0">
+        <dc:Bounds x="262" y="192" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="225" y="231" width="110" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_gm_di" bpmnElement="s_gm" isMarkerVisible="true">
+        <dc:Bounds x="365" y="185" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_gx_di" bpmnElement="s_gx" isMarkerVisible="true">
+        <dc:Bounds x="465" y="185" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="433" y="166" width="54" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_eexp_di" bpmnElement="s_eexp">
+        <dc:Bounds x="1272" y="122" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1235" y="86" width="110" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_uend1_di" bpmnElement="s_uend1">
+        <dc:Bounds x="1412" y="122" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1375" y="166" width="110" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_u2_di" bpmnElement="s_u2">
+        <dc:Bounds x="965" y="257" width="130" height="76" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_u1_di" bpmnElement="s_u1">
+        <dc:Bounds x="805" y="172" width="130" height="76" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_enew_di" bpmnElement="s_enew">
+        <dc:Bounds x="1392" y="277" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1355" y="239" width="110" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_uend2_di" bpmnElement="s_uend2">
+        <dc:Bounds x="1532" y="277" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1495" y="239" width="110" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="f309_di" bpmnElement="f309">
+        <di:waypoint x="298" y="210" />
+        <di:waypoint x="365" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f310_di" bpmnElement="f310">
+        <di:waypoint x="415" y="210" />
+        <di:waypoint x="465" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f311_di" bpmnElement="f311">
+        <di:waypoint x="515" y="210" />
+        <di:waypoint x="805" y="210" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="525" y="190" width="50" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f312_di" bpmnElement="f312">
+        <di:waypoint x="870" y="248" />
+        <di:waypoint x="870" y="335" />
+        <di:waypoint x="390" y="335" />
+        <di:waypoint x="390" y="235" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f313_di" bpmnElement="f313">
+        <di:waypoint x="490" y="185" />
+        <di:waypoint x="490" y="140" />
+        <di:waypoint x="1272" y="140" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="493" y="123" width="97" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f314_di" bpmnElement="f314">
+        <di:waypoint x="490" y="235" />
+        <di:waypoint x="490" y="295" />
+        <di:waypoint x="965" y="295" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="486" y="273" width="161" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f315_di" bpmnElement="f315">
+        <di:waypoint x="1095" y="295" />
+        <di:waypoint x="1392" y="295" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f316_di" bpmnElement="f316">
+        <di:waypoint x="1308" y="140" />
+        <di:waypoint x="1412" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f317_di" bpmnElement="f317">
+        <di:waypoint x="1428" y="295" />
+        <di:waypoint x="1532" y="295" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Pool_Empresa_di" bpmnElement="Pool_Empresa" isHorizontal="true">
+        <dc:Bounds x="160" y="360" width="1500" height="470" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ss_s_di" bpmnElement="ss_s">
+        <dc:Bounds x="282" y="557" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="245" y="596" width="110" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ss_1_di" bpmnElement="ss_1">
+        <dc:Bounds x="385" y="537" width="130" height="76" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ss_2_di" bpmnElement="ss_2">
+        <dc:Bounds x="545" y="537" width="130" height="76" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ss_gm_di" bpmnElement="ss_gm" isMarkerVisible="true">
+        <dc:Bounds x="705" y="550" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ss_3_di" bpmnElement="ss_3">
+        <dc:Bounds x="1065" y="537" width="130" height="76" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ss_4_di" bpmnElement="ss_4">
+        <dc:Bounds x="1225" y="537" width="130" height="76" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ss_end1_di" bpmnElement="ss_end1">
+        <dc:Bounds x="1472" y="557" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1435" y="596" width="110" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ss_en_di" bpmnElement="ss_en">
+        <dc:Bounds x="1012" y="652" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="975" y="691" width="110" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ss_5_di" bpmnElement="ss_5">
+        <dc:Bounds x="1105" y="632" width="130" height="76" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ss_6_di" bpmnElement="ss_6">
+        <dc:Bounds x="1345" y="632" width="130" height="76" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ss_end2_di" bpmnElement="ss_end2">
+        <dc:Bounds x="1532" y="652" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1495" y="691" width="110" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ds_sess_di" bpmnElement="ds_sess">
+        <dc:Bounds x="505" y="710" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="475" y="763" width="110" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ss_eb_di" bpmnElement="ss_eb">
+        <dc:Bounds x="785" y="550" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ss_ea_di" bpmnElement="ss_ea">
+        <dc:Bounds x="892" y="472" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="855" y="511" width="110" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ss_et_di" bpmnElement="ss_et">
+        <dc:Bounds x="932" y="557" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="895" y="596" width="110" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="f318_di" bpmnElement="f318">
+        <di:waypoint x="318" y="575" />
+        <di:waypoint x="385" y="575" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f319_di" bpmnElement="f319">
+        <di:waypoint x="515" y="575" />
+        <di:waypoint x="545" y="575" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f320_di" bpmnElement="f320">
+        <di:waypoint x="675" y="575" />
+        <di:waypoint x="705" y="575" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f321_di" bpmnElement="f321">
+        <di:waypoint x="755" y="575" />
+        <di:waypoint x="785" y="575" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f322_di" bpmnElement="f322">
+        <di:waypoint x="810" y="550" />
+        <di:waypoint x="810" y="490" />
+        <di:waypoint x="892" y="490" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f323_di" bpmnElement="f323">
+        <di:waypoint x="835" y="575" />
+        <di:waypoint x="932" y="575" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f324_di" bpmnElement="f324">
+        <di:waypoint x="810" y="600" />
+        <di:waypoint x="810" y="670" />
+        <di:waypoint x="1012" y="670" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f325_di" bpmnElement="f325">
+        <di:waypoint x="928" y="490" />
+        <di:waypoint x="1050" y="490" />
+        <di:waypoint x="1050" y="440" />
+        <di:waypoint x="730" y="440" />
+        <di:waypoint x="730" y="550" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f326_di" bpmnElement="f326">
+        <di:waypoint x="968" y="575" />
+        <di:waypoint x="1065" y="575" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f327_di" bpmnElement="f327">
+        <di:waypoint x="1195" y="575" />
+        <di:waypoint x="1225" y="575" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f328_di" bpmnElement="f328">
+        <di:waypoint x="1355" y="575" />
+        <di:waypoint x="1472" y="575" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f329_di" bpmnElement="f329">
+        <di:waypoint x="1048" y="670" />
+        <di:waypoint x="1105" y="670" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f330_di" bpmnElement="f330">
+        <di:waypoint x="1235" y="670" />
+        <di:waypoint x="1345" y="670" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f331_di" bpmnElement="f331">
+        <di:waypoint x="1475" y="670" />
+        <di:waypoint x="1532" y="670" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dss1_di" bpmnElement="dss1">
+        <di:waypoint x="450" y="613" />
+        <di:waypoint x="450" y="735" />
+        <di:waypoint x="505" y="735" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dss2_di" bpmnElement="dss2">
+        <di:waypoint x="610" y="613" />
+        <di:waypoint x="610" y="735" />
+        <di:waypoint x="555" y="735" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="m332_di" bpmnElement="m332">
+        <di:waypoint x="910" y="248" />
+        <di:waypoint x="910" y="472" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="m333_di" bpmnElement="m333">
+        <di:waypoint x="1030" y="333" />
+        <di:waypoint x="1030" y="652" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="m334_di" bpmnElement="m334">
+        <di:waypoint x="1290" y="537" />
+        <di:waypoint x="1290" y="158" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="m335_di" bpmnElement="m335">
+        <di:waypoint x="1410" y="632" />
+        <di:waypoint x="1410" y="313" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

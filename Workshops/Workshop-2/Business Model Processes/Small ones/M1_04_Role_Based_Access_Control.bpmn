@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="bpmn-js (https://demo.bpmn.io)" exporterVersion="18.31.1">
+  <bpmn:dataStore id="DataStore_Roles" name="Role permissions (3 fixed profiles)" />
+  <bpmn:dataStore id="DataStore_Users" name="User accounts" />
+  <bpmn:collaboration id="Collab_1">
+    <bpmn:participant id="Pool_UserW" name="User" processRef="Proc_Cliente" />
+    <bpmn:participant id="Pool_Empresa" name="Platform" processRef="Proc_Empresa" />
+    <bpmn:messageFlow id="m349" sourceRef="ru1" targetRef="rb_s" />
+    <bpmn:messageFlow id="m350" sourceRef="rb_3" targetRef="re_ok" />
+    <bpmn:messageFlow id="m351" sourceRef="rb_4" targetRef="re_deny" />
+  </bpmn:collaboration>
+  <bpmn:process id="Proc_Cliente" isExecutable="false">
+    <bpmn:startEvent id="ru_s" name="Needs to open a screen or run an action">
+      <bpmn:outgoing>f336</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="ru1" name="Request the screen or action">
+      <bpmn:incoming>f336</bpmn:incoming>
+      <bpmn:outgoing>f337</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:eventBasedGateway id="ebgR">
+      <bpmn:incoming>f337</bpmn:incoming>
+      <bpmn:outgoing>f338</bpmn:outgoing>
+      <bpmn:outgoing>f339</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <bpmn:endEvent id="ru_e1" name="Request completed">
+      <bpmn:incoming>f340</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:intermediateCatchEvent id="re_ok" name="Result received">
+      <bpmn:incoming>f338</bpmn:incoming>
+      <bpmn:outgoing>f340</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="re_ok_med" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:endEvent id="ru_e2" name="Request denied">
+      <bpmn:incoming>f341</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:intermediateCatchEvent id="re_deny" name="Permission denied message">
+      <bpmn:incoming>f339</bpmn:incoming>
+      <bpmn:outgoing>f341</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="re_deny_med" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:sequenceFlow id="f336" sourceRef="ru_s" targetRef="ru1" />
+    <bpmn:sequenceFlow id="f337" sourceRef="ru1" targetRef="ebgR" />
+    <bpmn:sequenceFlow id="f338" sourceRef="ebgR" targetRef="re_ok" />
+    <bpmn:sequenceFlow id="f339" sourceRef="ebgR" targetRef="re_deny" />
+    <bpmn:sequenceFlow id="f340" sourceRef="re_ok" targetRef="ru_e1" />
+    <bpmn:sequenceFlow id="f341" sourceRef="re_deny" targetRef="ru_e2" />
+  </bpmn:process>
+  <bpmn:process id="Proc_Empresa" isExecutable="false">
+    <bpmn:startEvent id="rb_s" name="Request received">
+      <bpmn:documentation>RF-01-04: applies to every route, view and operation.</bpmn:documentation>
+      <bpmn:outgoing>f342</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="rb_s_med" />
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="rb_1" name="Get the role of the account">
+      <bpmn:documentation>Roles: Superadministrador, Administrador, Operador (fixed profiles).</bpmn:documentation>
+      <bpmn:incoming>f342</bpmn:incoming>
+      <bpmn:outgoing>f343</bpmn:outgoing>
+      <bpmn:property id="Property_00qihio" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="drb1">
+        <bpmn:sourceRef>ds_ua</bpmn:sourceRef>
+        <bpmn:targetRef>Property_00qihio</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:businessRuleTask id="rb_2" name="Check the&#10;explicit permissions of the role">
+      <bpmn:documentation>RF-01-04: no custom permissions per user; anything not explicitly allowed is denied.</bpmn:documentation>
+      <bpmn:incoming>f343</bpmn:incoming>
+      <bpmn:outgoing>f344</bpmn:outgoing>
+      <bpmn:property id="Property_1pz7afs" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="drb2">
+        <bpmn:sourceRef>ds_rp</bpmn:sourceRef>
+        <bpmn:targetRef>Property_1pz7afs</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:businessRuleTask>
+    <bpmn:dataStoreReference id="ds_ua" name="User accounts" dataStoreRef="DataStore_Users" />
+    <bpmn:dataStoreReference id="ds_rp" name="Role permissions (3 fixed profiles)" dataStoreRef="DataStore_Roles" />
+    <bpmn:exclusiveGateway id="rb_g" name="Role has permission?">
+      <bpmn:incoming>f344</bpmn:incoming>
+      <bpmn:outgoing>f345</bpmn:outgoing>
+      <bpmn:outgoing>f347</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sendTask id="rb_3" name="Execute the request and return the result">
+      <bpmn:incoming>f345</bpmn:incoming>
+      <bpmn:outgoing>f346</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="rb_end1" name="Request allowed">
+      <bpmn:incoming>f346</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sendTask id="rb_4" name="Deny the&#10;request">
+      <bpmn:documentation>RF-01-04, HU 1.4</bpmn:documentation>
+      <bpmn:incoming>f347</bpmn:incoming>
+      <bpmn:outgoing>f348</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="rb_end2" name="Request denied">
+      <bpmn:incoming>f348</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="f342" sourceRef="rb_s" targetRef="rb_1" />
+    <bpmn:sequenceFlow id="f343" sourceRef="rb_1" targetRef="rb_2" />
+    <bpmn:sequenceFlow id="f344" sourceRef="rb_2" targetRef="rb_g" />
+    <bpmn:sequenceFlow id="f345" name="Yes" sourceRef="rb_g" targetRef="rb_3" />
+    <bpmn:sequenceFlow id="f347" name="No" sourceRef="rb_g" targetRef="rb_4" />
+    <bpmn:sequenceFlow id="f346" sourceRef="rb_3" targetRef="rb_end1" />
+    <bpmn:sequenceFlow id="f348" sourceRef="rb_4" targetRef="rb_end2" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collab_1">
+      <bpmndi:BPMNShape id="Pool_UserW_di" bpmnElement="Pool_UserW" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="1150" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ru_s_di" bpmnElement="ru_s">
+        <dc:Bounds x="302" y="192" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="265" y="231" width="110" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ru1_di" bpmnElement="ru1">
+        <dc:Bounds x="395" y="172" width="130" height="76" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ebgR_di" bpmnElement="ebgR">
+        <dc:Bounds x="575" y="185" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ru_e1_di" bpmnElement="ru_e1">
+        <dc:Bounds x="1182" y="127" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1145" y="166" width="110" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="re_ok_di" bpmnElement="re_ok">
+        <dc:Bounds x="1072" y="127" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1035" y="107" width="110" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ru_e2_di" bpmnElement="ru_e2">
+        <dc:Bounds x="1182" y="252" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1145" y="291" width="110" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="re_deny_di" bpmnElement="re_deny">
+        <dc:Bounds x="832" y="252" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="795" y="216" width="110" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="f336_di" bpmnElement="f336">
+        <di:waypoint x="338" y="210" />
+        <di:waypoint x="395" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f337_di" bpmnElement="f337">
+        <di:waypoint x="525" y="210" />
+        <di:waypoint x="575" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f338_di" bpmnElement="f338">
+        <di:waypoint x="600" y="185" />
+        <di:waypoint x="600" y="145" />
+        <di:waypoint x="1072" y="145" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f339_di" bpmnElement="f339">
+        <di:waypoint x="600" y="235" />
+        <di:waypoint x="600" y="270" />
+        <di:waypoint x="832" y="270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f340_di" bpmnElement="f340">
+        <di:waypoint x="1108" y="145" />
+        <di:waypoint x="1182" y="145" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f341_di" bpmnElement="f341">
+        <di:waypoint x="868" y="270" />
+        <di:waypoint x="1182" y="270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Pool_Empresa_di" bpmnElement="Pool_Empresa" isHorizontal="true">
+        <dc:Bounds x="160" y="360" width="1150" height="330" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="rb_s_di" bpmnElement="rb_s">
+        <dc:Bounds x="442" y="442" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="405" y="481" width="110" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="rb_1_di" bpmnElement="rb_1">
+        <dc:Bounds x="535" y="422" width="130" height="76" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="rb_2_di" bpmnElement="rb_2">
+        <dc:Bounds x="695" y="422" width="130" height="76" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ds_ua_di" bpmnElement="ds_ua">
+        <dc:Bounds x="575" y="565" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="545" y="618" width="110" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ds_rp_di" bpmnElement="ds_rp">
+        <dc:Bounds x="735" y="565" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="705" y="618" width="110" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="rb_g_di" bpmnElement="rb_g" isMarkerVisible="true">
+        <dc:Bounds x="915" y="435" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="902" y="402" width="75" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="rb_3_di" bpmnElement="rb_3">
+        <dc:Bounds x="1035" y="422" width="130" height="76" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="rb_end1_di" bpmnElement="rb_end1">
+        <dc:Bounds x="1222" y="442" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1185" y="481" width="110" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="rb_4_di" bpmnElement="rb_4">
+        <dc:Bounds x="875" y="552" width="130" height="76" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="rb_end2_di" bpmnElement="rb_end2">
+        <dc:Bounds x="1082" y="572" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1045" y="611" width="110" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="f342_di" bpmnElement="f342">
+        <di:waypoint x="478" y="460" />
+        <di:waypoint x="535" y="460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f343_di" bpmnElement="f343">
+        <di:waypoint x="665" y="460" />
+        <di:waypoint x="695" y="460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f344_di" bpmnElement="f344">
+        <di:waypoint x="825" y="460" />
+        <di:waypoint x="915" y="460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f345_di" bpmnElement="f345">
+        <di:waypoint x="965" y="460" />
+        <di:waypoint x="1035" y="460" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="971" y="440" width="29" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f347_di" bpmnElement="f347">
+        <di:waypoint x="940" y="485" />
+        <di:waypoint x="940" y="552" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="946" y="491" width="22" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f346_di" bpmnElement="f346">
+        <di:waypoint x="1165" y="460" />
+        <di:waypoint x="1222" y="460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f348_di" bpmnElement="f348">
+        <di:waypoint x="1005" y="590" />
+        <di:waypoint x="1082" y="590" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="m349_di" bpmnElement="m349">
+        <di:waypoint x="460" y="248" />
+        <di:waypoint x="460" y="442" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="m350_di" bpmnElement="m350">
+        <di:waypoint x="1090" y="422" />
+        <di:waypoint x="1090" y="163" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="m351_di" bpmnElement="m351">
+        <di:waypoint x="875" y="590" />
+        <di:waypoint x="850" y="590" />
+        <di:waypoint x="850" y="288" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="drb1_di" bpmnElement="drb1">
+        <di:waypoint x="600" y="565" />
+        <di:waypoint x="600" y="498" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="drb2_di" bpmnElement="drb2">
+        <di:waypoint x="760" y="565" />
+        <di:waypoint x="760" y="498" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
