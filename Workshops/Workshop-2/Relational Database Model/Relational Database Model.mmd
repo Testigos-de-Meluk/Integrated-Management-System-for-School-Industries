@@ -39,12 +39,12 @@ erDiagram
         varchar username UK
         varchar password_hash "bcrypt RNF-01-02"
         varchar full_name
-        varchar email UK "Clave de acceso"
-        varchar position "Cargo del empleado"
+        varchar email UK "Login key"
+        varchar position "Employee job title"
         varchar totp_secret
         boolean totp_linked
         smallint failed_totp_attempts
-        timestamp locked_until "Bloqueo 15 min tras 3 fallos"
+        timestamp locked_until "Locked 15 min after 3 failures"
         boolean is_active
         timestamp created_at
         timestamp updated_at
@@ -57,8 +57,8 @@ erDiagram
         varchar device_info
         varchar ip_address
         timestamp created_at
-        timestamp last_activity_at "Cierre a 15 min"
-        timestamp invalidated_at "Sesion unica"
+        timestamp last_activity_at "Timeout at 15 min"
+        timestamp invalidated_at "Single session"
         boolean is_active
     }
 
@@ -78,7 +78,7 @@ erDiagram
         backup_type type "daily, weekly, monthly"
         varchar file_path
         bigint size_bytes
-        varchar sha256_hash "Huella de integridad"
+        varchar sha256_hash "Integrity fingerprint"
         boolean is_encrypted
         integrity_status integrity_status "pending, valid, defective"
         timestamp verified_at
@@ -105,7 +105,7 @@ erDiagram
         varchar phone
         varchar address
         decimal credit_limit
-        decimal pending_balance "Cartera"
+        decimal pending_balance "Accounts receivable"
         boolean is_active
         timestamp created_at
     }
@@ -123,7 +123,7 @@ erDiagram
         varchar code UK
         varchar description
         varchar unit_of_measure
-        decimal current_price "Precio de referencia sugerido"
+        decimal current_price "Suggested reference price"
         boolean is_active
         timestamp created_at
     }
@@ -132,7 +132,7 @@ erDiagram
         integer id PK
         integer product_id FK
         date valid_from
-        date valid_to "Nulo = vigente"
+        date valid_to "Null = current"
         decimal min_price
         decimal max_price
         decimal suggested_price
@@ -166,9 +166,9 @@ erDiagram
         quote_source source "whatsapp_guided_form, manual"
         quote_status status "preliminary, approved, rejected"
         decimal total
-        date suggested_dispatch_date "Mediana de entregas"
+        date suggested_dispatch_date "Median of deliveries"
         varchar pdf_path
-        text reject_reason "Obligatorio al rechazar"
+        text reject_reason "Required when rejecting"
         integer created_by FK
         integer reviewed_by FK
         timestamp reviewed_at
@@ -180,18 +180,18 @@ erDiagram
         integer quote_id FK
         integer product_id FK
         decimal quantity
-        decimal unit_price "Precio congelado"
+        decimal unit_price "Frozen price"
         decimal subtotal
     }
 
     work_orders {
         integer id PK
         varchar wo_number UK
-        integer quote_id FK "Nulo = O.T. manual"
+        integer quote_id FK "Null = manual work order"
         integer third_party_id FK
         date agreed_date
         work_order_status status "pending, registered_in_siigo, reconciled, voided"
-        text void_reason "Obligatorio al anular"
+        text void_reason "Required when voiding"
         integer created_by FK
         timestamp created_at
         timestamp updated_at
