@@ -1,233 +1,187 @@
 erDiagram
-    roles ||--o{ users : "role_id"
-    users ||--o{ sessions : "user_id"
-    users |o--o{ audit_logs : "user_id"
-    backups ||--o{ backup_restore_tests : "backup_id"
-    users ||--o{ backup_restore_tests : "tested_by"
-    third_parties ||--o{ client_notes : "third_party_id"
-    users ||--o{ client_notes : "created_by"
-    products ||--o{ product_reference_prices : "product_id"
-    products ||--o{ price_change_logs : "product_id"
-    users ||--o{ price_change_logs : "changed_by"
-    third_parties |o--o{ chatbot_contacts : "third_party_id"
-    third_parties |o--o{ quotes : "third_party_id"
-    chatbot_contacts |o--o{ quotes : "contact_id"
-    users |o--o{ quotes : "created_by"
-    users |o--o{ quotes : "reviewed_by"
-    quotes ||--o{ quote_items : "quote_id"
-    products ||--o{ quote_items : "product_id"
-    quotes |o--o{ work_orders : "quote_id"
-    third_parties ||--o{ work_orders : "third_party_id"
-    users ||--o{ work_orders : "created_by"
-    work_orders ||--o{ work_order_items : "work_order_id"
-    products ||--o{ work_order_items : "product_id"
-    work_orders ||--o{ delivery_history : "work_order_id"
-    products ||--o{ delivery_history : "product_id"
-    users ||--o{ siigo_export_batches : "generated_by"
-    work_orders ||--o| siigo_export_queue : "work_order_id"
-    siigo_export_batches |o--o{ siigo_export_queue : "batch_id"
+    ROLE ||--o{ APP_USER : "role_id"
+    ROLE ||--o{ ROLE_PERMISSION : "role_id"
+    APP_USER ||--o| TOTP_ENROLLMENT : "user_id"
+    APP_USER ||--o{ SESSION : "user_id"
+    APP_USER ||--o{ AUDIT_ENTRY : "user_id"
+    BACKUP_FILE ||--o{ RESTORE_PROCESS : "backup_id"
+    APP_USER ||--o{ RESTORE_PROCESS : "requested_by"
+    CUSTOMER ||--o{ COMMERCIAL_NOTE : "customer_id"
+    APP_USER ||--o{ COMMERCIAL_NOTE : "author_id"
+    CUSTOMER |o--o{ QUOTATION : "customer_id"
+    QUOTATION ||--|{ QUOTATION_ITEM : "quotation_id"
+    PRODUCT ||--o{ QUOTATION_ITEM : "product_id"
+    CUSTOMER ||--o{ WORK_ORDER : "customer_id"
+    APP_USER ||--o{ WORK_ORDER : "created_by"
+    WORK_ORDER ||--|{ WORK_ORDER_ITEM : "work_order_id"
+    PRODUCT ||--o{ WORK_ORDER_ITEM : "product_id"
+    APP_USER ||--o{ EXPORT_BATCH : "created_by"
+    QUOTATION ||--o| PROCESSING_QUEUE_ENTRY : "quotation_id"
+    EXPORT_BATCH |o--|{ PROCESSING_QUEUE_ENTRY : "export_batch_id"
 
-    roles {
+    ROLE {
         integer id PK
-        role_name name UK "super_admin, admin, operator"
-        varchar description
+        role_type type UK "SUPERADMIN, ADMIN, OPERATOR"
     }
 
-    users {
-        integer id PK
+    ROLE_PERMISSION {
+        integer role_id PK, FK
+        permission permission PK "USER_MANAGE, BACKUP_MANAGE, BACKUP_RESTORE, CATALOG_VIEW, CATALOG_EDIT, CUSTOMER_MANAGE, QUOTATION_MANAGE, EXPORT_QUEUE_MANAGE, WORK_ORDER_MANAGE"
+    }
+
+    APP_USER {
+        uuid id PK
         integer role_id FK
-        varchar username UK
-        varchar password_hash "bcrypt RNF-01-02"
         varchar full_name
-        varchar email UK "Login key"
-        varchar position "Employee job title"
-        varchar totp_secret
-        boolean totp_linked
-        smallint failed_totp_attempts
-        timestamp locked_until "Locked 15 min after 3 failures"
-        boolean is_active
-        timestamp created_at
-        timestamp updated_at
+        varchar email UK "Login key, read-only after creation"
+        varchar job_title
+        varchar password_hash "bcrypt"
+        account_status status "ACTIVE, INACTIVE"
+        timestamp last_access_at
     }
 
-    sessions {
-        integer id PK
-        integer user_id FK
-        varchar refresh_token_hash
-        varchar device_info
-        varchar ip_address
-        timestamp created_at
-        timestamp last_activity_at "Timeout at 15 min"
-        timestamp invalidated_at "Single session"
-        boolean is_active
+    TOTP_ENROLLMENT {
+        uuid id PK
+        uuid user_id FK, UK "Max one enrollment per user (0..1)"
+        varchar secret
+        bytea qr_code
+        timestamp issued_at
+        timestamp expires_at "issued_at + 5 min"
+        enrollment_status status "PENDING, CONFIRMED, EXPIRED"
     }
 
-    audit_logs {
-        bigint id PK
-        integer user_id FK
-        varchar action
-        varchar entity_name
+    SESSION {
+        uuid id PK
+        uuid user_id FK
+        varchar access_token_id
+        varchar refresh_token_id
+        timestamp created_at
+        timestamp last_activity_at "Inactivity timeout 15 min"
+        session_status status "ACTIVE, TERMINATED"
+        termination_reason termination_reason "LOGOUT, INACTIVITY, NEW_LOGIN, ACCOUNT_DEACTIVATED"
+    }
+
+    AUDIT_ENTRY {
+        uuid id PK "Immutable"
+        uuid user_id FK "Required"
+        timestamp timestamp
+        audit_action action "CREATED, UPDATED, STATUS_CHANGED, APPROVED, REJECTED, CANCELLED, EXPORTED"
+        varchar entity_type
         varchar entity_id
-        jsonb details
-        varchar ip_address
-        timestamp created_at
+        text details
     }
 
-    backups {
-        integer id PK
-        backup_type type "daily, weekly, monthly"
-        varchar file_path
-        bigint size_bytes
-        varchar sha256_hash "Integrity fingerprint"
-        boolean is_encrypted
-        integrity_status integrity_status "pending, valid, defective"
-        timestamp verified_at
+    BACKUP_FILE {
+        uuid id PK
+        varchar file_name
         timestamp created_at
-        timestamp purged_at
+        double size_mb
+        backup_type type "DAILY, WEEKLY, MONTHLY"
+        varchar sha256_hash
+        integrity_status integrity_status "VALID, CORRUPTED, NOT_VERIFIED"
+        varchar storage_path
+        boolean encrypted
     }
 
-    backup_restore_tests {
-        integer id PK
-        integer backup_id FK
-        integer tested_by FK
+    RESTORE_PROCESS {
+        uuid id PK
+        uuid backup_id FK
+        uuid requested_by FK
+        restore_status status "VERIFYING, VERIFIED, VERIFICATION_FAILED, CONFIRMED, COMPLETED"
+        boolean verification_success "VerificationResult"
+        varchar verification_message "VerificationResult"
+        timestamp verified_at "VerificationResult"
         timestamp started_at
         timestamp finished_at
-        integrity_status result "pending, valid, defective"
-        boolean restored_to_production
     }
 
-    third_parties {
-        integer id PK
-        varchar nit UK
-        varchar name
-        third_party_type type "client, supplier, both"
-        varchar email
-        varchar phone
+    CUSTOMER {
+        uuid id PK
+        customer_type type "NATURAL_PERSON, LEGAL_ENTITY"
+        varchar tax_id UK "ID number or NIT, read-only"
+        varchar name "fullName or businessName"
         varchar address
-        decimal credit_limit
-        decimal pending_balance "Accounts receivable"
-        boolean is_active
-        timestamp created_at
-    }
-
-    client_notes {
-        integer id PK
-        integer third_party_id FK
-        integer created_by FK
-        text note
-        timestamp created_at
-    }
-
-    products {
-        integer id PK
-        varchar code UK
-        varchar description
-        varchar unit_of_measure
-        decimal current_price "Suggested reference price"
-        boolean is_active
-        timestamp created_at
-    }
-
-    product_reference_prices {
-        integer id PK
-        integer product_id FK
-        date valid_from
-        date valid_to "Null = current"
-        decimal min_price
-        decimal max_price
-        decimal suggested_price
-        timestamp created_at
-    }
-
-    price_change_logs {
-        bigint id PK
-        integer product_id FK
-        integer changed_by FK
-        decimal previous_price
-        decimal new_price
-        varchar support_document_path
-        timestamp changed_at
-    }
-
-    chatbot_contacts {
-        integer id PK
-        integer third_party_id FK
-        varchar name
+        varchar primary_phone
         varchar email
-        varchar phone
-        timestamp created_at
+        varchar commercial_contact
+        customer_status status "ACTIVE, INACTIVE"
     }
 
-    quotes {
-        integer id PK
-        varchar quote_number UK
-        integer third_party_id FK
-        integer contact_id FK
-        quote_source source "whatsapp_guided_form, manual"
-        quote_status status "preliminary, approved, rejected"
-        decimal total
-        date suggested_dispatch_date "Median of deliveries"
-        varchar pdf_path
-        text reject_reason "Required when rejecting"
-        integer created_by FK
-        integer reviewed_by FK
-        timestamp reviewed_at
-        timestamp created_at
-    }
-
-    quote_items {
-        integer id PK
-        integer quote_id FK
-        integer product_id FK
-        decimal quantity
-        decimal unit_price "Frozen price"
-        decimal subtotal
-    }
-
-    work_orders {
-        integer id PK
-        varchar wo_number UK
-        integer quote_id FK "Null = manual work order"
-        integer third_party_id FK
-        date agreed_date
-        work_order_status status "pending, registered_in_siigo, reconciled, voided"
-        text void_reason "Required when voiding"
-        integer created_by FK
+    COMMERCIAL_NOTE {
+        uuid id PK
+        uuid customer_id FK
+        uuid author_id FK
+        text content
         timestamp created_at
         timestamp updated_at
     }
 
-    work_order_items {
-        integer id PK
-        integer work_order_id FK
-        integer product_id FK
-        decimal quantity
-        decimal unit_price
-        decimal subtotal
+    PRODUCT {
+        uuid id PK
+        varchar code UK "Read-only"
+        varchar name
+        varchar unit_of_measure
+        product_status status "ACTIVE, INACTIVE"
     }
 
-    delivery_history {
-        integer id PK
-        integer work_order_id FK
-        integer product_id FK
-        decimal quantity
-        date order_date
-        date delivery_date
-        integer delivery_days
+    QUOTATION {
+        uuid id PK
+        uuid customer_id FK "Nullable: chatbot requester may not be a customer yet"
+        timestamp issued_at
+        varchar requester_full_name "RequesterContact"
+        varchar requester_email "RequesterContact"
+        varchar requester_phone "RequesterContact"
+        decimal estimated_total_min "PriceRange.min"
+        decimal estimated_total_max "PriceRange.max"
+        varchar currency
+        varchar commercial_terms
+        date valid_until
+        date estimated_dispatch_date
+        dispatch_date_source dispatch_date_source "SUGGESTED, MANUAL"
+        quotation_status status "PENDING_REVIEW, APPROVED, MODIFIED, REJECTED"
+        text rejection_reason "Required when rejecting"
     }
 
-    siigo_export_batches {
-        integer id PK
-        integer generated_by FK
-        varchar file_path
-        integer order_count
-        timestamp generated_at
+    QUOTATION_ITEM {
+        uuid id PK
+        uuid quotation_id FK
+        uuid product_id FK
+        varchar product_code "Snapshot"
+        varchar description "Snapshot"
+        integer quantity
+        decimal unit_price_min "PriceRange.min (estimated)"
+        decimal unit_price_max "PriceRange.max (estimated)"
     }
 
-    siigo_export_queue {
-        integer id PK
-        integer work_order_id FK, UK
-        integer batch_id FK
-        timestamp queued_at
-        timestamp exported_at
+    WORK_ORDER {
+        uuid id PK
+        bigint order_number UK "From database sequence, read-only"
+        uuid customer_id FK
+        uuid created_by FK
+        date agreed_delivery_date
+        work_order_status status "PENDING, REGISTERED_IN_SIIGO, RECONCILED, CANCELLED"
+        text cancellation_reason "Required when cancelling"
+        timestamp created_at
+    }
+
+    WORK_ORDER_ITEM {
+        uuid id PK
+        uuid work_order_id FK
+        uuid product_id FK
+        integer quantity
+    }
+
+    EXPORT_BATCH {
+        uuid id PK
+        uuid created_by FK
+        varchar file_name
+        timestamp created_at
+    }
+
+    PROCESSING_QUEUE_ENTRY {
+        uuid id PK
+        uuid quotation_id FK, UK "Approved quotation"
+        uuid export_batch_id FK "Null until exported"
+        export_status export_status "PENDING_EXPORT, EXPORTED"
+        timestamp enqueued_at
     }
