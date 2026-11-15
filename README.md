@@ -85,5 +85,4 @@ Integrated-Management-System-for-School-Industries/
 - [Cristofer Damian Camilo Ordonez Osa](mailto:crordonezo@unal.edu.co)
 - [Andres Felipe Franco Sepulveda](mailto:afrancose@unal.edu.co)
 - [Carlos Javier Cuervo Baracaldo](mailto:ccuervoba@unal.edu.co)
-- [Daniel Alejandro Gomez Mancilla](mailto:dangomezma@unal.edu.co)
 - [Juan Sebastian Gil Sanchez](mailto:jgilsan@unal.edu.co)
