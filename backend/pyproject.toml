@@ -21,7 +21,9 @@ select = ["E", "F", "I", "UP", "B", "DJ"]
 DJANGO_SETTINGS_MODULE = "config.settings.test"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "-ra"
+# --ds forces the test settings even when DJANGO_SETTINGS_MODULE is set in the environment
+# (inside Docker, .env sets it to config.settings.dev). A command-line option wins over the env var.
+addopts = "-ra --ds=config.settings.test"
 
 [tool.coverage.run]
 source = ["modules"]
