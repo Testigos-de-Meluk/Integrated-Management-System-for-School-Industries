@@ -52,8 +52,10 @@ backend/
    return serializers (DTOs), never entities or models.
 4. **Modules talk to each other through inbound ports** (use-case interfaces), not by reaching into
    another module's models or repositories.
+5. **Domain entities never cross the inbound port.** Use cases receive input DTOs and return output
+   DTOs (e.g. `ProductView`); REST adapters (`infrastructure/api/`) import ports, never a domain.
 
-Rules 1 and 2 (and "inner layers never import infrastructure") are checked automatically by
+Rules 1, 2 and 5 (plus "inner layers never import infrastructure") are checked automatically by
 [import-linter](https://import-linter.readthedocs.io/). See the contracts in `pyproject.toml`.
 
 ## Module template: `products`
@@ -64,9 +66,9 @@ Rules 1 and 2 (and "inner layers never import infrastructure") are checked autom
 |---|---|---|
 | domain | `domain/product.py` | Aggregate with its invariants and a factory method (`Product.register`). Pure Python. |
 | domain | `domain/exceptions.py` | Business errors extending the shared kernel ones (`ValidationError`, `NotFoundError`, `ConflictError`). Messages in Spanish. |
-| ports | `ports/inbound/product_use_cases.py` | Use-case interface + command/filter dataclasses. |
+| ports | `ports/inbound/product_use_cases.py` | Use-case interface + DTOs: input (`RegisterProductCommand`, `UpdateProductCommand`, `ProductFilters`) and output (`ProductView`). Plain values only. |
 | ports | `ports/outbound/product_repository.py` | Repository interface. |
-| application | `application/product_service.py` | Implements the inbound port: checks permissions (`actor.require(...)`), calls the domain, saves through the repository, writes the audit record. |
+| application | `application/product_service.py` | Implements the inbound port: checks permissions (`actor.require(...)`), calls the domain, saves through the repository, writes the audit record and returns a `ProductView` (`to_view`), never the entity. |
 | infrastructure | `models.py` + `migrations/` | Django ORM model (persistence only). |
 | infrastructure | `persistence/mappers.py`, `persistence/django_product_repository.py` | Entity ↔ model mapping and the repository adapter. |
 | infrastructure | `api/serializers.py`, `api/views.py`, `api/urls.py` | DTOs, thin REST controllers documented with `@extend_schema`, routes. |

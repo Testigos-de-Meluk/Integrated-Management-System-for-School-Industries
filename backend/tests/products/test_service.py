@@ -10,7 +10,6 @@ from modules.products.domain.exceptions import (
     DuplicateProductCode,
     ProductNotFound,
 )
-from modules.products.domain.product import ProductStatus
 from modules.products.ports.inbound.product_use_cases import (
     ProductFilters,
     RegisterProductCommand,
@@ -44,7 +43,8 @@ def register(service, code="SIL-001", name="Silla escolar", unit="Unidad", actor
 def test_admin_registers_a_product_and_it_is_audited(service, audit):
     product = register(service)
 
-    assert product.status is ProductStatus.ACTIVE
+    assert product.status == "ACTIVE"
+    assert product.is_selectable
     assert [r.action for r in audit.records] == [AuditAction.CREATED]
     assert audit.records[0].new_values["code"] == "SIL-001"
 
@@ -86,8 +86,8 @@ def test_update_keeps_old_and_new_values_in_the_audit_log(service, audit):
 def test_deactivate_then_reactivate(service, audit):
     product = register(service)
 
-    assert service.deactivate_product(ADMIN, product.id).status is ProductStatus.INACTIVE
-    assert service.activate_product(ADMIN, product.id).status is ProductStatus.ACTIVE
+    assert service.deactivate_product(ADMIN, product.id).status == "INACTIVE"
+    assert service.activate_product(ADMIN, product.id).status == "ACTIVE"
     assert [r.action for r in audit.records][-2:] == [AuditAction.STATUS_CHANGED] * 2
 
 
@@ -106,7 +106,7 @@ def test_filters_are_combined(service):
     )
 
     page = service.list_products(
-        ADMIN, ProductFilters(name="silla", status=ProductStatus.ACTIVE), PageRequest()
+        ADMIN, ProductFilters(name="silla", status="ACTIVE"), PageRequest()
     )
 
     assert [p.code for p in page.items] == ["SIL-001"]

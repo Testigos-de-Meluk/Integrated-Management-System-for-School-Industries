@@ -38,7 +38,7 @@ class InMemoryProductRepository(ProductRepository):
         if filters.unit_of_measure:
             items = [p for p in items if p.unit_of_measure == filters.unit_of_measure]
         if filters.status:
-            items = [p for p in items if p.status is filters.status]
+            items = [p for p in items if p.status.value == filters.status]
         start = page_request.offset
         return Page(items[start : start + page_request.size], len(items), page_request)
 

@@ -12,7 +12,6 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from modules.products.domain.product import ProductStatus
 from modules.products.infrastructure.dependencies import product_use_cases
 from modules.products.ports.inbound.product_use_cases import (
     ProductFilters,
@@ -50,7 +49,7 @@ class ProductListCreateView(APIView):
             code=data.get("code") or None,
             name=data.get("name") or None,
             unit_of_measure=data.get("unit_of_measure") or None,
-            status=ProductStatus(data["status"]) if data.get("status") else None,
+            status=data.get("status") or None,
         )
         page = product_use_cases().list_products(
             get_current_actor(request),

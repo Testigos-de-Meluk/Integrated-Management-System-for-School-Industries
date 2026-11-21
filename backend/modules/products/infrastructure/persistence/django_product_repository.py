@@ -46,7 +46,7 @@ class DjangoProductRepository(ProductRepository):
         if filters.unit_of_measure:
             queryset = queryset.filter(unit_of_measure__iexact=filters.unit_of_measure.strip())
         if filters.status:
-            queryset = queryset.filter(status=filters.status.value)
+            queryset = queryset.filter(status=filters.status)
 
         total = queryset.count()
         start = page_request.offset

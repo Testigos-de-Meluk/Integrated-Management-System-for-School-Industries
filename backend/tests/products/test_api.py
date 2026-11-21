@@ -38,6 +38,7 @@ def test_full_lifecycle_as_admin(client):
 
     deactivated = client.post(f"{URL}{product_id}/deactivate/")
     assert deactivated.json()["status"] == "INACTIVE"
+    assert deactivated.json()["is_selectable"] is False
 
     again = client.post(f"{URL}{product_id}/deactivate/")
     assert again.status_code == 409

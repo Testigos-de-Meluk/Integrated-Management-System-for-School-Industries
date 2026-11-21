@@ -100,3 +100,35 @@ name = "Inner layers never import infrastructure"
 type = "forbidden"
 source_modules = ["modules.*.domain", "modules.*.ports", "modules.*.application"]
 forbidden_modules = ["modules.*.infrastructure"]
+
+# 4. REST adapters talk to the inbound ports (DTOs) only, never to a business domain.
+#    (The shared kernel domain is allowed: pagination, errors, roles.)
+[[tool.importlinter.contracts]]
+name = "REST adapters depend on inbound ports, not on domains"
+type = "forbidden"
+# Only direct imports are forbidden: api -> port -> domain is the intended path.
+allow_indirect_imports = true
+source_modules = [
+    "modules.authentication.infrastructure.api",
+    "modules.user_accounts.infrastructure.api",
+    "modules.products.infrastructure.api",
+    "modules.customers.infrastructure.api",
+    "modules.chatbot.infrastructure.api",
+    "modules.quotations.infrastructure.api",
+    "modules.work_orders.infrastructure.api",
+    "modules.accounting_export.infrastructure.api",
+    "modules.backups.infrastructure.api",
+    "modules.price_history.infrastructure.api",
+]
+forbidden_modules = [
+    "modules.authentication.domain",
+    "modules.user_accounts.domain",
+    "modules.products.domain",
+    "modules.customers.domain",
+    "modules.chatbot.domain",
+    "modules.quotations.domain",
+    "modules.work_orders.domain",
+    "modules.accounting_export.domain",
+    "modules.backups.domain",
+    "modules.price_history.domain",
+]

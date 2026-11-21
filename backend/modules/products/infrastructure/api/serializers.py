@@ -2,25 +2,26 @@
 
 from rest_framework import serializers
 
-from modules.products.domain.product import (
+from modules.products.ports.inbound.product_use_cases import (
     CODE_MAX_LENGTH,
     NAME_MAX_LENGTH,
+    PRODUCT_STATUSES,
     UNIT_MAX_LENGTH,
-    ProductStatus,
 )
 from modules.shared_kernel.infrastructure.api.pagination import PageQuerySerializer, page_serializer
 
-STATUS_CHOICES = [(status.value, status.value) for status in ProductStatus]
+STATUS_CHOICES = [(status, status) for status in PRODUCT_STATUSES]
 
 
 class ProductSerializer(serializers.Serializer):
-    """Output representation of a product."""
+    """Output representation of a product: serializes a ``ProductView`` DTO."""
 
     id = serializers.UUIDField(read_only=True)
     code = serializers.CharField(read_only=True)
     name = serializers.CharField(read_only=True)
     unit_of_measure = serializers.CharField(read_only=True)
     status = serializers.ChoiceField(choices=STATUS_CHOICES, read_only=True)
+    is_selectable = serializers.BooleanField(read_only=True)
 
 
 ProductPageSerializer = page_serializer("ProductPage", ProductSerializer)

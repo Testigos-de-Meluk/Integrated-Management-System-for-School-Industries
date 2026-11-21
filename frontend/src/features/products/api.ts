@@ -16,6 +16,8 @@ export type Product = {
   name: string;
   unit_of_measure: string;
   status: ProductStatus;
+  /** Whether it can be added to new quotations and work orders. */
+  is_selectable: boolean;
 };
 
 export type ProductFilters = {
