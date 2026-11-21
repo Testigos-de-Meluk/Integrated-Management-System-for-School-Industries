@@ -92,6 +92,10 @@ def _enrollment_to_domain(model: TotpEnrollmentModel) -> TotpEnrollment:
 
 
 class DjangoEnrollmentRepository(EnrollmentRepository):
+    def delete_for_user(self, user_id: UUID) -> bool:
+        deleted, _ = TotpEnrollmentModel.objects.filter(user_id=user_id).delete()
+        return deleted > 0
+
     def get_for_user(self, user_id: UUID) -> TotpEnrollment | None:
         model = TotpEnrollmentModel.objects.filter(user_id=user_id).first()
         return _enrollment_to_domain(model) if model else None

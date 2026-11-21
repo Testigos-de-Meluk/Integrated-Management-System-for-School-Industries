@@ -26,3 +26,7 @@ class EnrollmentRepository(ABC):
     @abstractmethod
     def save(self, enrollment: TotpEnrollment) -> None:
         """Insert or update. The secret is encrypted at rest by the adapter."""
+
+    @abstractmethod
+    def delete_for_user(self, user_id: UUID) -> bool:
+        """Removes the user's enrollment. Returns ``True`` if there was one."""

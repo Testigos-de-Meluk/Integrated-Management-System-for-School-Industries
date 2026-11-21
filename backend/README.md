@@ -125,6 +125,14 @@ initial password is generated and printed once:
 docker compose exec backend python manage.py create_superadmin --email admin@empresa.com --name "Carlos Ríos"
 ```
 
+Lost a password, or nobody can log in? Passwords are bcrypt hashes and can never be read back, but
+they can be replaced (also unlocks the account and closes its sessions; add
+`--reset-authenticator` if the phone with the authenticator app was lost):
+
+```bash
+docker compose exec backend python manage.py reset_password --email admin@empresa.com
+```
+
 ## Common commands
 
 Run them inside the backend container (the project must be running with `docker compose up`):

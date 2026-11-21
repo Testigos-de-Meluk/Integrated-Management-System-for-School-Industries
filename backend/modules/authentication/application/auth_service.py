@@ -243,6 +243,9 @@ class AuthService(AuthUseCases):
         if session is not None and not session.is_terminated:
             self._terminate(session, TerminationReason.LOGOUT, self._now(), actor=actor)
 
+    def reset_authenticator(self, user_id: UUID) -> bool:
+        return self._enrollments.delete_for_user(user_id)
+
     def terminate_sessions_for(self, user_id: UUID, reason: str) -> None:
         now = self._now()
         for session in self._sessions.active_sessions_of(user_id):

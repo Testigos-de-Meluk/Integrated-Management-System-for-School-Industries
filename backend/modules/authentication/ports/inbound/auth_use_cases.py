@@ -118,5 +118,9 @@ class AuthUseCases(ABC):
     def logout(self, actor: Actor) -> None: ...
 
     @abstractmethod
+    def reset_authenticator(self, user_id: UUID) -> bool:
+        """Unlinks the authenticator app (lost phone): the next login shows a new QR code."""
+
+    @abstractmethod
     def terminate_sessions_for(self, user_id: UUID, reason: str) -> None:
         """Closes every active session of a user (deactivation, password change)."""
