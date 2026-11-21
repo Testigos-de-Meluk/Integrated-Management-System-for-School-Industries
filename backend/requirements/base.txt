@@ -1,5 +1,6 @@
 # Runtime dependencies. Django 5.2 is the current LTS (supported until April 2028).
 Django~=5.2.0
+bcrypt~=4.3
 djangorestframework~=3.16
 drf-spectacular~=0.28
 psycopg[binary]~=3.2

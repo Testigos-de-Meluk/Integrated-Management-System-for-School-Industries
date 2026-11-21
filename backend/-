@@ -1,0 +1,687 @@
+openapi: 3.0.3
+info:
+  title: IMSI API
+  version: 0.1.0
+  description: REST API of the Integrated Management System for School Industries
+    (Industrias Escolares). Each tag groups the endpoints of one module.
+paths:
+  /api/health/:
+    get:
+      operationId: health_retrieve
+      description: Report whether the API, the database and Redis are reachable.
+      summary: Health check
+      tags:
+      - system
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+          description: API, database and Redis are up.
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+          description: A dependency is unavailable.
+  /api/products/:
+    get:
+      operationId: products_list
+      summary: List products (paginated, filterable)
+      parameters:
+      - in: query
+        name: code
+        schema:
+          type: string
+      - in: query
+        name: name
+        schema:
+          type: string
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+          maximum: 50
+          minimum: 1
+          default: 20
+      - in: query
+        name: status
+        schema:
+          enum:
+          - ACTIVE
+          - INACTIVE
+          type: string
+          minLength: 1
+        description: |-
+          * `ACTIVE` - ACTIVE
+          * `INACTIVE` - INACTIVE
+      - in: query
+        name: unit_of_measure
+        schema:
+          type: string
+      tags:
+      - products
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductPage'
+          description: ''
+    post:
+      operationId: products_create
+      summary: Register a product
+      tags:
+      - products
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProductCreateRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/products/{product_id}/:
+    get:
+      operationId: products_retrieve
+      summary: Get a product
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - products
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+    patch:
+      operationId: products_partial_update
+      summary: Update name and unit of measure (the code is immutable)
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - products
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedProductUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedProductUpdateRequest'
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/products/{product_id}/activate/:
+    post:
+      operationId: products_activate_create
+      summary: Activate a product
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - products
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/products/{product_id}/deactivate/:
+    post:
+      operationId: products_deactivate_create
+      summary: Deactivate a product
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - products
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/users/:
+    get:
+      operationId: users_list
+      summary: List user accounts (paginated, filterable)
+      parameters:
+      - in: query
+        name: email
+        schema:
+          type: string
+      - in: query
+        name: job_title
+        schema:
+          type: string
+      - in: query
+        name: name
+        schema:
+          type: string
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+          maximum: 50
+          minimum: 1
+          default: 20
+      - in: query
+        name: role
+        schema:
+          enum:
+          - SUPERADMIN
+          - ADMIN
+          - OPERATOR
+          type: string
+          minLength: 1
+        description: |-
+          * `SUPERADMIN` - SUPERADMIN
+          * `ADMIN` - ADMIN
+          * `OPERATOR` - OPERATOR
+      - in: query
+        name: status
+        schema:
+          enum:
+          - ACTIVE
+          - INACTIVE
+          type: string
+          minLength: 1
+        description: |-
+          * `ACTIVE` - ACTIVE
+          * `INACTIVE` - INACTIVE
+      tags:
+      - users
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPage'
+          description: ''
+    post:
+      operationId: users_create
+      summary: Create a user account and email its credentials
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/users/{user_id}/:
+    get:
+      operationId: users_retrieve
+      summary: Get a user account
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - users
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    patch:
+      operationId: users_partial_update
+      summary: Update name, job title and role (the email is immutable)
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserUpdateRequest'
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/users/{user_id}/activate/:
+    post:
+      operationId: users_activate_create
+      summary: Reactivate an account
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - users
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/users/{user_id}/deactivate/:
+    post:
+      operationId: users_deactivate_create
+      summary: Deactivate an account and close its sessions
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - users
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/users/{user_id}/password/:
+    post:
+      operationId: users_password_create
+      summary: Set a new password (manual or generated) and email it to the user
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/users/{user_id}/unlock/:
+    post:
+      operationId: users_unlock_create
+      summary: Unlock an account locked by failed logins
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - users
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+components:
+  schemas:
+    ActiveStatusEnum:
+      enum:
+      - ACTIVE
+      - INACTIVE
+      type: string
+      description: |-
+        * `ACTIVE` - ACTIVE
+        * `INACTIVE` - INACTIVE
+    ChangePasswordRequest:
+      type: object
+      properties:
+        password:
+          type: string
+          writeOnly: true
+          maxLength: 64
+        generate_password:
+          type: boolean
+          default: false
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthResponseStatusEnum'
+        checks:
+          type: object
+          additionalProperties:
+            enum:
+            - ok
+            - unavailable
+            type: string
+            description: |-
+              * `ok` - ok
+              * `unavailable` - unavailable
+      required:
+      - checks
+      - status
+    HealthResponseStatusEnum:
+      enum:
+      - ok
+      - degraded
+      type: string
+      description: |-
+        * `ok` - ok
+        * `degraded` - degraded
+    PatchedProductUpdateRequest:
+      type: object
+      description: 'The code is not accepted: it cannot be modified once created (FR-02-03).'
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        unit_of_measure:
+          type: string
+          minLength: 1
+          maxLength: 30
+    PatchedUserUpdateRequest:
+      type: object
+      description: 'The email is not accepted: it can never change (FR-01-12).'
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        job_title:
+          type: string
+          minLength: 1
+          maxLength: 100
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+    Product:
+      type: object
+      description: 'Output representation of a product: serializes a ``ProductView``
+        DTO.'
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        unit_of_measure:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ActiveStatusEnum'
+          readOnly: true
+        is_selectable:
+          type: boolean
+          readOnly: true
+      required:
+      - code
+      - id
+      - is_selectable
+      - name
+      - status
+      - unit_of_measure
+    ProductCreateRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 30
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        unit_of_measure:
+          type: string
+          minLength: 1
+          maxLength: 30
+      required:
+      - code
+      - name
+      - unit_of_measure
+    ProductPage:
+      type: object
+      properties:
+        count:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total_pages:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+      required:
+      - count
+      - page
+      - page_size
+      - results
+      - total_pages
+    RoleEnum:
+      enum:
+      - SUPERADMIN
+      - ADMIN
+      - OPERATOR
+      type: string
+      description: |-
+        * `SUPERADMIN` - SUPERADMIN
+        * `ADMIN` - ADMIN
+        * `OPERATOR` - OPERATOR
+    User:
+      type: object
+      description: Serializes a ``UserView`` DTO.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        job_title:
+          type: string
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ActiveStatusEnum'
+          readOnly: true
+        last_access_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        is_locked:
+          type: boolean
+          readOnly: true
+        locked_until:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - email
+      - full_name
+      - id
+      - is_locked
+      - job_title
+      - last_access_at
+      - locked_until
+      - role
+      - status
+    UserCreateRequest:
+      type: object
+      properties:
+        password:
+          type: string
+          writeOnly: true
+          maxLength: 64
+        generate_password:
+          type: boolean
+          default: false
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        email:
+          type: string
+          minLength: 1
+          maxLength: 254
+        job_title:
+          type: string
+          minLength: 1
+          maxLength: 100
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+      required:
+      - email
+      - full_name
+      - job_title
+      - role
+    UserPage:
+      type: object
+      properties:
+        count:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total_pages:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+      required:
+      - count
+      - page
+      - page_size
+      - results
+      - total_pages

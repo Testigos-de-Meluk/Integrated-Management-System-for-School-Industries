@@ -1,4 +1,8 @@
+import pytest
 from django.test import Client
+
+# Every API request runs inside a database transaction (ATOMIC_REQUESTS).
+pytestmark = pytest.mark.django_db
 
 
 def test_openapi_schema_is_generated():

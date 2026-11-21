@@ -32,7 +32,13 @@ the Celery worker and scheduler, and the React frontend. You only need
    docker compose up --build
    ```
 
-4. Open:
+4. Create the first Superadministrador (only the first time; the initial password is printed once):
+
+   ```bash
+   docker compose exec backend python manage.py create_superadmin --email admin@empresa.com --name "Nombre Apellido"
+   ```
+
+5. Open:
 
    | Service | URL |
    | --- | --- |

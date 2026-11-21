@@ -30,6 +30,12 @@ class AuditAction(StrEnum):
     RESTORED = "RESTORED"
 
 
+class ActorType(StrEnum):
+    USER = "USER"  # a person with an account
+    SYSTEM = "SYSTEM"  # scheduled jobs, management commands
+    ANONYMOUS = "ANONYMOUS"  # public assistant, failed login with an unknown email
+
+
 class OperationResult(StrEnum):
     SUCCESS = "SUCCESS"
     FAILURE = "FAILURE"
@@ -45,3 +51,27 @@ class AuditRecord:
     new_values: Mapping[str, Any] | None = None
     reason: str | None = None
     result: OperationResult = OperationResult.SUCCESS
+    #: Set explicitly for SYSTEM / ANONYMOUS actions; derived from ``actor`` otherwise.
+    actor_type: ActorType | None = None
+    #: Human-readable actor when there is no account (e.g. "create_superadmin", an email).
+    actor_label: str | None = None
+    #: Source IP when there is no ``actor`` (e.g. a failed login).
+    source_ip: str | None = None
+
+    @property
+    def resolved_actor_type(self) -> ActorType:
+        if self.actor_type is not None:
+            return self.actor_type
+        if self.actor is not None and self.actor.user_id is not None:
+            return ActorType.USER
+        return ActorType.ANONYMOUS
+
+    @property
+    def resolved_source_ip(self) -> str | None:
+        return self.source_ip or (self.actor.source_ip if self.actor else None)
+
+    @property
+    def resolved_actor_label(self) -> str | None:
+        if self.actor_label:
+            return self.actor_label
+        return self.actor.role.value if self.actor else None

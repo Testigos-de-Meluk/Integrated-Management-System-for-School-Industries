@@ -27,4 +27,10 @@ def get_current_actor(request: Request) -> Actor:
         raise ValidationError.for_field(
             "role", f"Rol desconocido: {raw_role}. Use SUPERADMIN, ADMIN u OPERATOR."
         ) from error
-    return Actor.for_role(role)
+    return Actor.for_role(role, source_ip=client_ip(request))
+
+
+def client_ip(request: Request) -> str | None:
+    """Source IP of the request (NFR-08-01). Behind the dev proxy this is the proxy's address;
+    the production reverse proxy will forward the real one."""
+    return request.META.get("REMOTE_ADDR") or None

@@ -82,10 +82,27 @@ in-memory fakes (`fakes.py`, no database), and API tests marked `django_db`.
 - `shared_kernel.domain.security`: `Actor`, `RoleType`, `Permission` and the fixed role-permission matrix.
 - `shared_kernel.domain.pagination`: `PageRequest` (max 50) and `Page`.
 - `shared_kernel.domain.audit` + `ports.outbound.audit_logger`: audit records and the `AuditLogger`
-  port. **Temporary adapter:** `LoggingAuditLogger` writes to the log until the insert-only
-  `AUDIT_ENTRY` table arrives with the authentication module.
+  port, implemented by `DatabaseAuditLogger` on the insert-only `audit_entry` table (a PostgreSQL
+  trigger rejects every UPDATE and DELETE, NFR-08-01).
+- `shared_kernel.domain.events` + `ports.outbound.event_publisher`: domain events and the
+  in-process event bus (**Observer** pattern). Modules subscribe in their `AppConfig.ready()`.
+- `shared_kernel.ports.outbound.notifier`: emails, sent by Celery after the transaction commits
+  (`CeleryEmailNotifier`). In development they arrive in Mailpit.
+- `shared_kernel.ports.outbound.password_hasher`: bcrypt, cost 12 (`BcryptPasswordHasher`).
 - `shared_kernel.infrastructure.api`: `get_current_actor`, the error handler (single error format
   `{"detail", "errors"}`) and pagination helpers.
+
+Every API request runs inside one database transaction (`ATOMIC_REQUESTS`, NFR-04-02): if any step
+fails — a business rule, the audit entry — nothing is saved.
+
+### First Superadministrador
+
+Only administrators can create accounts, so the first one is created from the command line. The
+initial password is generated and printed once:
+
+```bash
+docker compose exec backend python manage.py create_superadmin --email admin@empresa.com --name "Carlos Ríos"
+```
 
 > **Temporary role selection.** Until the authentication module exists, the client chooses its role
 > with the `X-Dev-Role` header (`SUPERADMIN`, `ADMIN`, `OPERATOR`; default `SUPERADMIN`). It only works

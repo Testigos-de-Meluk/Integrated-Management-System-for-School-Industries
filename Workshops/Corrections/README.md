@@ -298,7 +298,7 @@ Product, PriceImportBatch).
 ### 5.3 Architecture diagram
 
 **Kept:** hexagonal architecture (ports and adapters), deployed as a modular monolith, client-server
-communication, REST API with Django REST Framework and SimpleJWT, Celery Beat for scheduled backups,
+communication, REST API with Django REST Framework, Celery Beat for scheduled backups,
 PostgreSQL as the single database.
 
 **Changes**
@@ -377,8 +377,19 @@ The `.bpmn` files are not regenerated. Changes to apply when they are next edite
 
 ### 6.1 Backend
 
-Kept as designed: Python + Django + Django REST Framework + SimpleJWT, Celery + Celery Beat, PostgreSQL,
+Kept as designed: Python + Django + Django REST Framework, Celery + Celery Beat, PostgreSQL,
 hexagonal architecture.
+
+Changed: **SimpleJWT is replaced by PyJWT behind the `TokenIssuer` port** (adapter `JwtTokenIssuer`,
+as in the class diagram). SimpleJWT requires Django's own user model and has no pre-authentication
+token for the 2FA step; with PyJWT the access token carries the session id, which is checked against
+the `SESSION` table on every request (single session and inactivity, FR-01-05/06). The refresh token
+travels in an `httpOnly` cookie and the access token is kept only in the browser's memory.
+
+**Roles are stored as a column of `APP_USER`.** Because roles and their permissions are fixed
+(RN-M1-01, FR-01-04), the role-permission matrix lives in code (`shared_kernel.domain.security`)
+instead of the `ROLE` / `ROLE_PERMISSION` tables of the corrected model, so there is nothing to keep in
+sync.
 
 Changed: **Django Channels and WebSockets are removed** (the assistant is REST-based). Redis is still needed
 as the Celery broker.

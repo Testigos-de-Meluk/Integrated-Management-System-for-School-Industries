@@ -51,15 +51,26 @@ DEFAULT_ROLE_PERMISSIONS: Mapping[RoleType, frozenset[Permission]] = {
 
 @dataclass(frozen=True, slots=True)
 class Actor:
-    """Who is executing a use case. ``user_id`` is ``None`` for system or anonymous actors."""
+    """Who is executing a use case, and from where (NFR-08-01 needs the source IP).
+
+    ``user_id`` is ``None`` only for actors without an account (temporary development role).
+    """
 
     role: RoleType
     permissions: frozenset[Permission]
     user_id: UUID | None = None
+    source_ip: str | None = None
 
     @classmethod
-    def for_role(cls, role: RoleType, user_id: UUID | None = None) -> "Actor":
-        return cls(role=role, permissions=DEFAULT_ROLE_PERMISSIONS[role], user_id=user_id)
+    def for_role(
+        cls, role: RoleType, user_id: UUID | None = None, source_ip: str | None = None
+    ) -> "Actor":
+        return cls(
+            role=role,
+            permissions=DEFAULT_ROLE_PERMISSIONS[role],
+            user_id=user_id,
+            source_ip=source_ip,
+        )
 
     def has_permission(self, permission: Permission) -> bool:
         return permission in self.permissions

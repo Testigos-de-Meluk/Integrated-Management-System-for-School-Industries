@@ -83,8 +83,9 @@ DATABASES = {
         "PASSWORD": env("POSTGRES_PASSWORD", ""),
         "HOST": env("POSTGRES_HOST", "db"),
         "PORT": env("POSTGRES_PORT", "5432"),
-        # NFR-04-02: at least Read Committed (PostgreSQL default). Critical use cases open
-        # explicit transactions in the application layer.
+        # NFR-04-02: every API request runs in one ACID transaction (Read Committed, the
+        # PostgreSQL default). A failure anywhere — business rule, audit entry — rolls back all.
+        "ATOMIC_REQUESTS": True,
         "CONN_MAX_AGE": 60,
     }
 }
@@ -141,6 +142,12 @@ SPECTACULAR_SETTINGS = {
     "SCHEMA_PATH_PREFIX": r"/api/",
     # Separate request/response components, so read-only fields are not required on input.
     "COMPONENT_SPLIT_REQUEST": True,
+    # Explicit names for enums that share a field name across modules (e.g. "status").
+    # Products and accounts share the same ACTIVE/INACTIVE set, so they share one enum.
+    "ENUM_NAME_OVERRIDES": {
+        "ActiveStatusEnum": "modules.products.ports.inbound.product_use_cases.PRODUCT_STATUSES",
+        "RoleEnum": "modules.user_accounts.ports.inbound.user_account_use_cases.ROLES",
+    },
 }
 
 # --- Redis / Celery ---------------------------------------------------------------------------
@@ -163,6 +170,14 @@ EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", False)
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "IMSI <no-reply@industriasescolares.local>")
+
+# --- Security ---------------------------------------------------------------------------------
+
+# NFR-01-02: bcrypt cost factor (minimum 12). Only the test settings lower it, for speed.
+BCRYPT_ROUNDS = int(env("BCRYPT_ROUNDS", "12"))
+
+# Public URL of the frontend, used in emails (e.g. the login link sent with new credentials).
+FRONTEND_URL = env("FRONTEND_URL", "http://localhost:5173")
 
 # --- Files ------------------------------------------------------------------------------------
 
