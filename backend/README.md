@@ -95,6 +95,27 @@ in-memory fakes (`fakes.py`, no database), and API tests marked `django_db`.
 Every API request runs inside one database transaction (`ATOMIC_REQUESTS`, NFR-04-02): if any step
 fails — a business rule, the audit entry — nothing is saved.
 
+### Authentication (how a request is authenticated)
+
+1. `POST /api/auth/login/` (email + password) → short-lived **pre-authentication token**.
+2. First login: `POST /api/auth/enrollment/` (QR + secret, valid 5 min) and
+   `POST /api/auth/enrollment/confirm/` (code). Other logins: `POST /api/auth/verify/` (6-digit code).
+3. The response contains the **access token** (5 min, kept in memory by the frontend) and sets the
+   **refresh token** as an `httpOnly` cookie limited to `/api/auth/`.
+4. Every request sends `Authorization: Bearer <access token>`. `SessionJwtAuthentication` checks the
+   token **and** its row in the `session` table (single session, 15-minute inactivity, deactivated
+   account) and reads the role from the account, so role changes apply immediately.
+5. `POST /api/auth/refresh/` renews the access token and rotates the refresh cookie; replaying an old
+   refresh token closes the session (theft detection).
+
+Failed logins must be **saved** (lockout counter and audit) even though the request fails, so those
+use cases return an `Outcome` with the error instead of raising it (raising would roll back the
+request's transaction). In Swagger UI, use **Authorize** with the access token.
+
+**Production keys** (never commit them): `JWT_SIGNING_KEY` (long random string) and
+`TOTP_ENCRYPTION_KEY` (Fernet key: `python -c "from cryptography.fernet import Fernet;
+print(Fernet.generate_key().decode())"`). Empty values are only acceptable in development.
+
 ### First Superadministrador
 
 Only administrators can create accounts, so the first one is created from the command line. The
@@ -104,9 +125,10 @@ initial password is generated and printed once:
 docker compose exec backend python manage.py create_superadmin --email admin@empresa.com --name "Carlos Ríos"
 ```
 
-> **Temporary role selection.** Until the authentication module exists, the client chooses its role
-> with the `X-Dev-Role` header (`SUPERADMIN`, `ADMIN`, `OPERATOR`; default `SUPERADMIN`). It only works
-> when `DEV_ROLE_HEADER_ENABLED` is on (development and tests); anywhere else every request is denied.
+> **Temporary role selection.** Until the frontend has its login screens, an explicit `X-Dev-Role`
+> header (`SUPERADMIN`, `ADMIN`, `OPERATOR`) still works without logging in, only while
+> `DEV_ROLE_HEADER_ENABLED` is on (development and tests). Requests with neither a session nor that
+> header get **401**.
 
 ## Common commands
 

@@ -60,16 +60,22 @@ class Actor:
     permissions: frozenset[Permission]
     user_id: UUID | None = None
     source_ip: str | None = None
+    session_id: UUID | None = None
 
     @classmethod
     def for_role(
-        cls, role: RoleType, user_id: UUID | None = None, source_ip: str | None = None
+        cls,
+        role: RoleType,
+        user_id: UUID | None = None,
+        source_ip: str | None = None,
+        session_id: UUID | None = None,
     ) -> "Actor":
         return cls(
             role=role,
             permissions=DEFAULT_ROLE_PERMISSIONS[role],
             user_id=user_id,
             source_ip=source_ip,
+            session_id=session_id,
         )
 
     def has_permission(self, permission: Permission) -> bool:

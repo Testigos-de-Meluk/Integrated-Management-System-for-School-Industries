@@ -91,6 +91,7 @@ def test_list_is_paginated_and_filtered(client):
 
 
 def test_unknown_product_returns_404(client):
+    as_role(client, "ADMIN")
     response = client.get(f"{URL}00000000-0000-0000-0000-000000000000/")
 
     assert response.status_code == 404

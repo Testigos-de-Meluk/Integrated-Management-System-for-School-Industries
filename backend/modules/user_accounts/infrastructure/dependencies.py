@@ -12,7 +12,9 @@ from modules.shared_kernel.infrastructure.notifications.celery_email_notifier im
 from modules.shared_kernel.infrastructure.security.bcrypt_password_hasher import (
     BcryptPasswordHasher,
 )
+from modules.user_accounts.application.account_access_service import AccountAccessService
 from modules.user_accounts.application.user_account_service import UserAccountService
+from modules.user_accounts.ports.inbound.account_access import AccountAccess
 from modules.user_accounts.ports.inbound.user_account_use_cases import UserAccountUseCases
 
 from .persistence.django_user_repository import DjangoUserRepository
@@ -21,6 +23,12 @@ from .persistence.django_user_repository import DjangoUserRepository
 @lru_cache(maxsize=1)
 def password_hasher() -> BcryptPasswordHasher:
     return BcryptPasswordHasher(rounds=settings.BCRYPT_ROUNDS)
+
+
+@lru_cache(maxsize=1)
+def account_access() -> AccountAccess:
+    """Port offered to other modules (the authentication module) for login checks."""
+    return AccountAccessService(DjangoUserRepository(), password_hasher())
 
 
 @lru_cache(maxsize=1)

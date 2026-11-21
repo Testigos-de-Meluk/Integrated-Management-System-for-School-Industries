@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import exception_handler as drf_exception_handler
 
 from modules.shared_kernel.domain.exceptions import (
+    AuthenticationError,
     ConflictError,
     DomainError,
     NotFoundError,
@@ -19,6 +20,7 @@ from modules.shared_kernel.domain.exceptions import (
 
 _STATUS_BY_ERROR: list[tuple[type[DomainError], int]] = [
     (ValidationError, status.HTTP_400_BAD_REQUEST),
+    (AuthenticationError, status.HTTP_401_UNAUTHORIZED),
     (PermissionDeniedError, status.HTTP_403_FORBIDDEN),
     (NotFoundError, status.HTTP_404_NOT_FOUND),
     (ConflictError, status.HTTP_409_CONFLICT),
@@ -26,11 +28,23 @@ _STATUS_BY_ERROR: list[tuple[type[DomainError], int]] = [
 ]
 
 
+def error_response(exc: DomainError) -> Response:
+    """Builds the standard error response without raising.
+
+    Use cases whose failures must be persisted (failed logins count towards the lockout and are
+    audited) return the error instead of raising it: raising would roll back the request's
+    transaction and erase that record.
+    """
+    http_status = next(code for kind, code in _STATUS_BY_ERROR if isinstance(exc, kind))
+    body = {"detail": exc.message, "errors": exc.errors if isinstance(exc, ValidationError) else {}}
+    if exc.code:
+        body["code"] = exc.code
+    return Response(body, status=http_status)
+
+
 def api_exception_handler(exc, context):
     if isinstance(exc, DomainError):
-        http_status = next(code for kind, code in _STATUS_BY_ERROR if isinstance(exc, kind))
-        errors = exc.errors if isinstance(exc, ValidationError) else {}
-        return Response({"detail": exc.message, "errors": errors}, status=http_status)
+        return error_response(exc)
 
     response = drf_exception_handler(exc, context)
     if response is None:

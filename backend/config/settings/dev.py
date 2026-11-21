@@ -7,3 +7,6 @@ DEBUG = env_bool("DJANGO_DEBUG", True)
 
 # TEMPORARY: role chosen with the X-Dev-Role header until the authentication module exists.
 DEV_ROLE_HEADER_ENABLED = env_bool("DEV_ROLE_HEADER_ENABLED", True)
+
+# Local development runs over plain HTTP, so the refresh cookie cannot be "Secure".
+REFRESH_COOKIE_SECURE = env_bool("REFRESH_COOKIE_SECURE", False)

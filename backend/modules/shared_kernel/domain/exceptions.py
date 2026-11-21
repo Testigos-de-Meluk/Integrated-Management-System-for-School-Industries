@@ -9,9 +9,13 @@ class DomainError(Exception):
     """Base class for every business-rule violation."""
 
     default_message = "No fue posible completar la operación."
+    #: Optional machine-readable code so the frontend can react (e.g. "SESSION_EXPIRED").
+    code: str | None = None
 
-    def __init__(self, message: str | None = None) -> None:
+    def __init__(self, message: str | None = None, code: str | None = None) -> None:
         self.message = message or self.default_message
+        if code is not None:
+            self.code = code
         super().__init__(self.message)
 
 
@@ -39,6 +43,13 @@ class ConflictError(DomainError):
     """The operation is not allowed in the current state of the entity."""
 
     default_message = "La operación no es posible en el estado actual."
+
+
+class AuthenticationError(DomainError):
+    """The caller is not (or no longer) authenticated: HTTP 401."""
+
+    default_message = "Debe iniciar sesión para continuar."
+    code = "NOT_AUTHENTICATED"
 
 
 class PermissionDeniedError(DomainError):

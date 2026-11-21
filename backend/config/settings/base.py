@@ -4,6 +4,7 @@ All environment-specific values come from environment variables (see ``.env.exam
 repository root). Never hard-code secrets here.
 """
 
+import hashlib
 import os
 from pathlib import Path
 
@@ -107,8 +108,11 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.JSONParser",
         "rest_framework.parsers.MultiPartParser",
     ],
-    # Temporary until the authentication module provides JWT authentication and RBAC.
-    "DEFAULT_AUTHENTICATION_CLASSES": [],
+    # Access token + server-side session check on every request (FR-01-05, FR-01-06).
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "modules.authentication.infrastructure.api.authentication.SessionJwtAuthentication"
+    ],
+    # Authorization is enforced by every use case (actor.require(...)): deny by default.
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
     "UNAUTHENTICATED_USER": None,
     # NFR-07-02: server-side pagination, never more than 50 records per page.
@@ -175,6 +179,21 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "IMSI <no-reply@industriasescolar
 
 # NFR-01-02: bcrypt cost factor (minimum 12). Only the test settings lower it, for speed.
 BCRYPT_ROUNDS = int(env("BCRYPT_ROUNDS", "12"))
+
+# JWT (PyJWT, HS256). Use a long random value in production. When empty, a 64-character key is
+# derived from SECRET_KEY, so it is never shorter than the 32 bytes HS256 needs.
+JWT_SIGNING_KEY = (
+    env("JWT_SIGNING_KEY", "") or hashlib.sha256(f"jwt:{SECRET_KEY}".encode()).hexdigest()
+)
+ACCESS_TOKEN_MINUTES = int(env("ACCESS_TOKEN_MINUTES", "5"))
+REFRESH_TOKEN_HOURS = int(env("REFRESH_TOKEN_HOURS", "12"))
+# The refresh cookie is "Secure" (HTTPS only) everywhere except local development over HTTP.
+REFRESH_COOKIE_SECURE = env_bool("REFRESH_COOKIE_SECURE", True)
+
+# Fernet key that encrypts TOTP secrets at rest. Generate one with:
+#   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+# Empty → derived from SECRET_KEY (acceptable only in development).
+TOTP_ENCRYPTION_KEY = env("TOTP_ENCRYPTION_KEY", "")
 
 # Public URL of the frontend, used in emails (e.g. the login link sent with new credentials).
 FRONTEND_URL = env("FRONTEND_URL", "http://localhost:5173")

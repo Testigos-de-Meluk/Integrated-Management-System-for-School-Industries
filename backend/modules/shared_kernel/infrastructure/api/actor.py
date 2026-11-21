@@ -1,33 +1,38 @@
 """Resolves the :class:`Actor` that executes a request.
 
-TEMPORARY: until the authentication module exists, the role is taken from the ``X-Dev-Role``
-header (``SUPERADMIN`` when absent). This is only possible when ``DEV_ROLE_HEADER_ENABLED`` is on
-(development and tests). In any other environment every request is rejected, so this shortcut can
-never reach production. The authentication module will replace this function with the role of the
-JWT's user; views and use cases will not change.
+The actor comes from the authenticated session (``SessionJwtAuthentication`` sets
+``request.user.actor``). Requests without a valid session are rejected: deny by default.
+
+TEMPORARY (removed when the frontend has its login screens): in development and tests, an explicit
+``X-Dev-Role`` header still selects a role without logging in. It only works while
+``DEV_ROLE_HEADER_ENABLED`` is on, so it can never reach production.
 """
 
 from django.conf import settings
 from rest_framework.request import Request
 
-from modules.shared_kernel.domain.exceptions import PermissionDeniedError, ValidationError
+from modules.shared_kernel.domain.exceptions import AuthenticationError, ValidationError
 from modules.shared_kernel.domain.security import Actor, RoleType
 
 DEV_ROLE_HEADER = "X-Dev-Role"
 
 
 def get_current_actor(request: Request) -> Actor:
-    if not getattr(settings, "DEV_ROLE_HEADER_ENABLED", False):
-        raise PermissionDeniedError()
+    actor = getattr(request.user, "actor", None)
+    if isinstance(actor, Actor):
+        return actor
 
-    raw_role = request.headers.get(DEV_ROLE_HEADER, RoleType.SUPERADMIN)
-    try:
-        role = RoleType(raw_role.upper())
-    except ValueError as error:
-        raise ValidationError.for_field(
-            "role", f"Rol desconocido: {raw_role}. Use SUPERADMIN, ADMIN u OPERATOR."
-        ) from error
-    return Actor.for_role(role, source_ip=client_ip(request))
+    raw_role = request.headers.get(DEV_ROLE_HEADER)
+    if raw_role and getattr(settings, "DEV_ROLE_HEADER_ENABLED", False):
+        try:
+            role = RoleType(raw_role.upper())
+        except ValueError as error:
+            raise ValidationError.for_field(
+                "role", f"Rol desconocido: {raw_role}. Use SUPERADMIN, ADMIN u OPERATOR."
+            ) from error
+        return Actor.for_role(role, source_ip=client_ip(request))
+
+    raise AuthenticationError()
 
 
 def client_ip(request: Request) -> str | None:
