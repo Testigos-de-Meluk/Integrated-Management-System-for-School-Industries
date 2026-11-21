@@ -1,0 +1,7 @@
+# Development and test tooling.
+-r base.txt
+pytest~=8.4
+pytest-django~=4.11
+pytest-cov~=6.2
+ruff~=0.12
+import-linter~=2.3

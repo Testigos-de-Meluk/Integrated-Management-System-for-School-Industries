@@ -13,10 +13,69 @@ This repository contains the deliverables developed by the **Testigos de Meluk**
 - **Department:** Department of Systems and Industrial Engineering
 - **Professor:** [Liliana Marcela Olarte Mesa](mailto:lmolartem@unal.edu.co)
 
+## Getting Started (local development)
+
+The whole system runs locally with **Docker Compose**: PostgreSQL, Redis, Mailpit, the Django API,
+the Celery worker and scheduler, and the React frontend. You only need
+[Docker Desktop](https://www.docker.com/products/docker-desktop/) (on Windows, with the WSL 2 backend).
+
+1. Clone the repository and open a terminal in its root folder.
+2. Create your local environment file (only the first time):
+
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Build and start everything (the first build takes a few minutes):
+
+   ```bash
+   docker compose up --build
+   ```
+
+4. Open:
+
+   | Service | URL |
+   | --- | --- |
+   | Frontend (React) | http://localhost:5173 |
+   | API health check | http://localhost:8000/api/health/ |
+   | Mailpit (emails sent in development) | http://localhost:8025 |
+
+Everyday commands:
+
+| Action | Command |
+| --- | --- |
+| Start (after the first time) | `docker compose up` |
+| Stop | `Ctrl+C`, then `docker compose down` |
+| See logs of one service | `docker compose logs -f backend` |
+| Open a shell in the backend | `docker compose exec backend sh` |
+| Rebuild after changing `requirements/*.txt` | `docker compose up --build` |
+| Rebuild after changing `package.json` | `docker compose up --build -V frontend` |
+| Delete the database and start clean | `docker compose down -v` |
+
+Code changes are picked up automatically (Django and Vite reload). The Celery worker does **not**
+reload: restart it with `docker compose restart worker beat` after changing tasks.
+
+More details: [`backend/README.md`](backend/README.md) (architecture rules and commands).
+
 ## Repository Structure
 
 ```
 Integrated-Management-System-for-School-Industries/
+├── backend/                    # Django + DRF + Celery (modular monolith, hexagonal modules)
+│   ├── config/                 # Settings, root URLs, Celery app
+│   ├── modules/                # One package per module: domain/ application/ ports/ infrastructure/
+│   ├── tests/
+│   ├── Dockerfile
+│   └── README.md
+├── frontend/                   # React + TypeScript + Vite (SPA, client-side rendering)
+│   ├── src/
+│   │   ├── app/                # Providers and router
+│   │   ├── features/           # One folder per business feature
+│   │   ├── pages/
+│   │   └── shared/             # API client and shared components
+│   └── Dockerfile
+├── docker-compose.yml          # Local development environment
+├── .env.example                # Environment variables template (copy to .env)
 ├── Workshops/
 │   ├── Corrections/
 │   │   ├── Updated-Files/

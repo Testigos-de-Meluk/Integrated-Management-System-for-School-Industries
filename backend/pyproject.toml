@@ -1,0 +1,102 @@
+[project]
+name = "imsi-backend"
+version = "0.1.0"
+description = "Backend of the Integrated Management System for School Industries (IMSI)."
+requires-python = ">=3.12"
+
+# --- Ruff (lint + import sorting) -------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["**/migrations/**"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "DJ"]
+
+[tool.ruff.lint.per-file-ignores]
+"config/settings/*.py" = ["F403", "F405"]
+
+# --- Pytest -----------------------------------------------------------------------------------
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra"
+
+[tool.coverage.run]
+source = ["modules"]
+omit = ["*/migrations/*"]
+
+# --- Import Linter: enforces the hexagonal architecture --------------------------------------
+# Run with:  lint-imports
+[tool.importlinter]
+root_packages = ["modules"]
+include_external_packages = true
+
+# 1. Inside every module, dependencies point inwards:
+#    infrastructure -> application -> ports -> domain   (never the other way round)
+[[tool.importlinter.contracts]]
+name = "Hexagonal layers point inwards in every module"
+type = "layers"
+layers = ["infrastructure", "application", "ports", "domain"]
+containers = [
+    "modules.shared_kernel",
+    "modules.authentication",
+    "modules.user_accounts",
+    "modules.catalog",
+    "modules.customers",
+    "modules.assistant",
+    "modules.quotations",
+    "modules.work_orders",
+    "modules.accounting_export",
+    "modules.backups",
+    "modules.price_history",
+]
+
+# 2. Domain, ports and application are framework-free (pure Python).
+[[tool.importlinter.contracts]]
+name = "Domain, ports and application do not depend on frameworks"
+type = "forbidden"
+source_modules = [
+    "modules.shared_kernel.domain",
+    "modules.shared_kernel.ports",
+    "modules.shared_kernel.application",
+    "modules.authentication.domain",
+    "modules.authentication.ports",
+    "modules.authentication.application",
+    "modules.user_accounts.domain",
+    "modules.user_accounts.ports",
+    "modules.user_accounts.application",
+    "modules.catalog.domain",
+    "modules.catalog.ports",
+    "modules.catalog.application",
+    "modules.customers.domain",
+    "modules.customers.ports",
+    "modules.customers.application",
+    "modules.assistant.domain",
+    "modules.assistant.ports",
+    "modules.assistant.application",
+    "modules.quotations.domain",
+    "modules.quotations.ports",
+    "modules.quotations.application",
+    "modules.work_orders.domain",
+    "modules.work_orders.ports",
+    "modules.work_orders.application",
+    "modules.accounting_export.domain",
+    "modules.accounting_export.ports",
+    "modules.accounting_export.application",
+    "modules.backups.domain",
+    "modules.backups.ports",
+    "modules.backups.application",
+    "modules.price_history.domain",
+    "modules.price_history.ports",
+    "modules.price_history.application",
+]
+forbidden_modules = ["django", "rest_framework", "celery", "psycopg", "redis"]
+
+# 3. The inner layers of a module never reach into the infrastructure of any module.
+[[tool.importlinter.contracts]]
+name = "Inner layers never import infrastructure"
+type = "forbidden"
+source_modules = ["modules.*.domain", "modules.*.ports", "modules.*.application"]
+forbidden_modules = ["modules.*.infrastructure"]

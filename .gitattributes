@@ -1,0 +1,13 @@
+# Text files use LF line endings, so scripts and configs behave the same inside Linux containers.
+* text=auto eol=lf
+
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.pdf  binary
+*.docx binary
+*.ico  binary
