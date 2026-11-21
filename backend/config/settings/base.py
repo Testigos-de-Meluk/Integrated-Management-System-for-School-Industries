@@ -37,9 +37,9 @@ BUSINESS_MODULES = [
     "shared_kernel",
     "authentication",
     "user_accounts",
-    "catalog",
+    "products",
     "customers",
-    "assistant",
+    "chatbot",
     "quotations",
     "work_orders",
     "accounting_export",
@@ -49,6 +49,7 @@ BUSINESS_MODULES = [
 
 INSTALLED_APPS = [
     "rest_framework",
+    "drf_spectacular",
     *[f"modules.{module}.infrastructure" for module in BUSINESS_MODULES],
 ]
 
@@ -114,6 +115,24 @@ REST_FRAMEWORK = {
         "modules.shared_kernel.infrastructure.api.pagination.StandardPagination"
     ),
     "PAGE_SIZE": 20,
+    # OpenAPI 3 schema generated from views and serializers (drf-spectacular).
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+# --- API documentation (drf-spectacular) ------------------------------------------------------
+# Swagger UI: /api/docs/   ReDoc: /api/redoc/   Raw schema: /api/schema/
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "IMSI API",
+    "DESCRIPTION": (
+        "REST API of the Integrated Management System for School Industries "
+        "(Industrias Escolares). Each tag groups the endpoints of one module."
+    ),
+    "VERSION": "0.1.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SCHEMA_PATH_PREFIX": r"/api/",
+    # Separate request/response components, so read-only fields are not required on input.
+    "COMPONENT_SPLIT_REQUEST": True,
 }
 
 # --- Redis / Celery ---------------------------------------------------------------------------

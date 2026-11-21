@@ -383,6 +383,13 @@ hexagonal architecture.
 Changed: **Django Channels and WebSockets are removed** (the assistant is REST-based). Redis is still needed
 as the Celery broker.
 
+Modules follow the names of the architecture diagram (Auth, User Account, Product, Customer, Chatbot,
+Quotation, Work Order, Accounting Export, Backup) plus the Shared Kernel and the new **Price History**
+module (WhatsApp import, FR-02-24), which is added to the diagram as a tenth business module.
+
+**API documentation:** the OpenAPI 3 schema is generated automatically from the REST views and serializers
+with **drf-spectacular**, and published with Swagger UI (`/api/docs/`) and ReDoc (`/api/redoc/`).
+
 ### 6.2 Frontend
 
 **Decision: SPA (single-page application) with CSR (client-side rendering).**
@@ -417,6 +424,7 @@ Hosting is not a requirement this semester.
 |---|---|---|
 | 1 | Add the **isolated restore environment (sandbox)** adapter to the architecture (FR-01-09, US 1.13). | Before implementing backups |
 | 2 | Siigo Pyme flat-file format (columns, CSV/TXT layout). | Before implementing the export (FR-02-18) |
-| 3 | Docker setup and development workflow. | Next phase |
+| 3 | ~~Docker setup and development workflow.~~ Done: see the root `README.md`. | Done |
 | 4 | Dashboard, weekly report and audit log screens. | During development |
 | 5 | Confirm whether the AI provider can read screenshots for WhatsApp import; if not, use OCR before extraction or accept `.txt` only. | Before implementing FR-02-24 |
+| 6 | Postman collection for the API (can be imported from the OpenAPI schema at `/api/schema/`). | Later |

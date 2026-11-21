@@ -3,6 +3,8 @@
 import redis
 from django.conf import settings
 from django.db import connection
+from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
+from rest_framework import serializers
 from rest_framework.decorators import api_view
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -23,6 +25,23 @@ def _check_redis() -> bool:
         return False
 
 
+_HEALTH_RESPONSE = inline_serializer(
+    name="HealthResponse",
+    fields={
+        "status": serializers.ChoiceField(choices=["ok", "degraded"]),
+        "checks": serializers.DictField(child=serializers.ChoiceField(["ok", "unavailable"])),
+    },
+)
+
+
+@extend_schema(
+    tags=["system"],
+    summary="Health check",
+    responses={
+        200: OpenApiResponse(_HEALTH_RESPONSE, description="API, database and Redis are up."),
+        503: OpenApiResponse(_HEALTH_RESPONSE, description="A dependency is unavailable."),
+    },
+)
 @api_view(["GET"])
 def health(request: Request) -> Response:
     """Report whether the API, the database and Redis are reachable."""

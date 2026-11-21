@@ -34,9 +34,9 @@ backend/
 | `shared_kernel` | — | Common value objects (Money, PriceRange…), audit log, notifications, file storage, pagination, health check |
 | `authentication` | `/api/auth/` | Login, TOTP 2FA, single active session, inactivity timeout, temporary lockout |
 | `user_accounts` | `/api/users/` | User CRUD, fixed roles and permissions (RBAC) |
-| `catalog` | `/api/catalog/` | Products (no official prices) |
+| `products` | `/api/products/` | Product catalog (no official prices) |
 | `customers` | `/api/customers/` | Natural persons / legal entities, 360° profile, commercial notes |
-| `assistant` | `/api/assistant/` | Hybrid virtual assistant (guided steps + free-text proposals) |
+| `chatbot` | `/api/chatbot/` | Hybrid virtual assistant (guided steps + free-text proposals) |
 | `quotations` | `/api/quotations/` | Price-range estimation, PDF, review, approval, rejection |
 | `work_orders` | `/api/work-orders/` | O.T. generation from approved quotations and status lifecycle |
 | `accounting_export` | `/api/accounting-export/` | Processing queue and Siigo Pyme flat-file batches |

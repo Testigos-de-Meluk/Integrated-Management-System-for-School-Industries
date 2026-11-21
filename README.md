@@ -38,6 +38,8 @@ the Celery worker and scheduler, and the React frontend. You only need
    | --- | --- |
    | Frontend (React) | http://localhost:5173 |
    | API health check | http://localhost:8000/api/health/ |
+   | API documentation (Swagger UI) | http://localhost:8000/api/docs/ |
+   | API documentation (ReDoc) | http://localhost:8000/api/redoc/ |
    | Mailpit (emails sent in development) | http://localhost:8025 |
 
 Everyday commands:
