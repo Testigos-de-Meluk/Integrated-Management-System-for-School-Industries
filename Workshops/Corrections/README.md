@@ -348,7 +348,7 @@ The corrected model is in [`Updated-Files/Relational_Database_Model.mmd`](Update
 | `QUOTATION_ITEM` | New `final_unit_price`. |
 | `WORK_ORDER` | New `quotation_id` (FK, unique, not null) and `actual_dispatch_date`. |
 | `SESSION` | `access_token_id` is not stored (the access token carries the session id). Termination reasons add `PASSWORD_CHANGED` and `TOKEN_REUSE` (replayed refresh token). |
-| `TOTP_ENCRYPTION` | The TOTP secret is stored encrypted (Fernet) in `encrypted_secret`; `last_used_step` prevents reusing a code. The QR image is generated on demand, not stored. |
+| `TOTP_ENROLLMENT` | The TOTP secret is stored encrypted (Fernet) in `encrypted_secret`; `last_used_step` prevents reusing a code. The QR image is generated on demand, not stored. |
 | `PRICE_IMPORT_BATCH` | **New** table. |
 | `HISTORICAL_PRICE_SAMPLE` | **New** table. |
 | Timestamps | `timestamp` → `timestamptz` everywhere (NFR-08-01 requires the time zone). |
