@@ -18,6 +18,10 @@ This repository contains the deliverables developed by the **Testigos de Meluk**
 ```
 Integrated-Management-System-for-School-Industries/
 ├── Workshops/
+│   ├── Corrections/
+│   │   ├── Updated-Files/
+│   │   │   └── Relational_Database_Model.mmd
+│   │   └── README.md
 │   ├── Workshop-1/
 │   │   ├── Analysis.pdf
 │   │   ├── User_Story_Map_Testigos_De_Meluk.drawio
@@ -55,6 +59,13 @@ Integrated-Management-System-for-School-Industries/
 ├── .gitignore
 └── README.md
 ```
+
+### Corrections: Pre-Implementation Baseline
+
+| Path | Description |
+| --- | --- |
+| `README.md` | Corrections to Workshops 1 and 2: what changes and what is kept. Takes precedence over the original deliverables. |
+| `Updated-Files/Relational_Database_Model.mmd` | Corrected relational database model (Mermaid). |
 
 ### Workshop-1: Analysis
 
