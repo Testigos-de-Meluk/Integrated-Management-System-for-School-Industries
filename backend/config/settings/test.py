@@ -7,7 +7,6 @@ os.environ.setdefault("DJANGO_SECRET_KEY", "test-only-secret-key")
 from .base import *  # noqa: E402, F403
 
 DEBUG = False
-DEV_ROLE_HEADER_ENABLED = True
 BCRYPT_ROUNDS = 4  # fast hashing in tests only (real environments use 12)
 REFRESH_COOKIE_SECURE = False
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"

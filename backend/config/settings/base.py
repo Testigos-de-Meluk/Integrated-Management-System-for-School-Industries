@@ -128,10 +128,6 @@ REST_FRAMEWORK = {
     ),
 }
 
-# TEMPORARY (until the authentication module exists): lets the client choose its role with the
-# ``X-Dev-Role`` header. Off by default; only development and tests turn it on.
-DEV_ROLE_HEADER_ENABLED = env_bool("DEV_ROLE_HEADER_ENABLED", False)
-
 # --- API documentation (drf-spectacular) ------------------------------------------------------
 # Swagger UI: /api/docs/   ReDoc: /api/redoc/   Raw schema: /api/schema/
 

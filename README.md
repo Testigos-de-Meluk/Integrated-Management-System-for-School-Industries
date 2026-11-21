@@ -38,7 +38,12 @@ the Celery worker and scheduler, and the React frontend. You only need
    docker compose exec backend python manage.py create_superadmin --email admin@empresa.com --name "Nombre Apellido"
    ```
 
-5. Open:
+5. Log in at http://localhost:5173 with that email and password. On the first login, link an
+   authenticator app (Google Authenticator, Microsoft Authenticator, etc.) by scanning the QR code;
+   every later login asks for its 6-digit code. Emails sent by the system (e.g. credentials of new
+   accounts) appear in Mailpit.
+
+6. Open:
 
    | Service | URL |
    | --- | --- |

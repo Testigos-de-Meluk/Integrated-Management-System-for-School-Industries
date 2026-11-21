@@ -125,11 +125,6 @@ initial password is generated and printed once:
 docker compose exec backend python manage.py create_superadmin --email admin@empresa.com --name "Carlos Ríos"
 ```
 
-> **Temporary role selection.** Until the frontend has its login screens, an explicit `X-Dev-Role`
-> header (`SUPERADMIN`, `ADMIN`, `OPERATOR`) still works without logging in, only while
-> `DEV_ROLE_HEADER_ENABLED` is on (development and tests). Requests with neither a session nor that
-> header get **401**.
-
 ## Common commands
 
 Run them inside the backend container (the project must be running with `docker compose up`):

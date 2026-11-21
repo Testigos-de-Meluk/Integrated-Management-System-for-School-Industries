@@ -15,6 +15,9 @@ class CeleryEmailNotifier(Notifier):
     def send(self, message: EmailMessage) -> None:
         from modules.shared_kernel.infrastructure.tasks import send_email
 
+        # robust=True: if the broker is down, the failure is logged instead of turning an already
+        # committed operation (e.g. a created account) into an error response.
         transaction.on_commit(
-            lambda: send_email.delay(list(message.to), message.subject, message.body)
+            lambda: send_email.delay(list(message.to), message.subject, message.body),
+            robust=True,
         )

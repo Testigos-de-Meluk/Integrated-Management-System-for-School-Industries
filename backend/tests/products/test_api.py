@@ -1,9 +1,9 @@
-"""REST API integration tests (database required)."""
+"""REST API integration tests (database required), with real logged-in sessions."""
 
 import pytest
-from rest_framework.test import APIClient
 
 from modules.products.domain.exceptions import DUPLICATE_CODE_MESSAGE
+from modules.shared_kernel.domain.security import RoleType
 
 pytestmark = pytest.mark.django_db
 
@@ -11,13 +11,9 @@ URL = "/api/products/"
 
 
 @pytest.fixture
-def client():
-    return APIClient()
-
-
-def as_role(client, role):
-    client.credentials(HTTP_X_DEV_ROLE=role)
-    return client
+def client(logged_in_client):
+    """Administrador session (can edit the catalog)."""
+    return logged_in_client(RoleType.ADMIN)
 
 
 def create(client, code="SIL-001", name="Silla escolar", unit="Unidad"):
@@ -25,8 +21,6 @@ def create(client, code="SIL-001", name="Silla escolar", unit="Unidad"):
 
 
 def test_full_lifecycle_as_admin(client):
-    as_role(client, "ADMIN")
-
     created = create(client)
     assert created.status_code == 201
     product_id = created.json()["id"]
@@ -45,7 +39,6 @@ def test_full_lifecycle_as_admin(client):
 
 
 def test_duplicate_code_returns_field_error(client):
-    as_role(client, "ADMIN")
     create(client)
 
     response = create(client, code="sil-001")
@@ -55,27 +48,23 @@ def test_duplicate_code_returns_field_error(client):
 
 
 def test_missing_fields_return_field_errors(client):
-    as_role(client, "ADMIN")
-
     response = client.post(URL, {}, format="json")
 
     assert response.status_code == 400
     assert set(response.json()["errors"]) == {"code", "name", "unit_of_measure"}
 
 
-def test_operator_has_read_only_access(client):
-    as_role(client, "ADMIN")
+def test_operator_has_read_only_access(client, logged_in_client):
     create(client)
-    as_role(client, "OPERATOR")
+    operator = logged_in_client(RoleType.OPERATOR)
 
-    assert client.get(URL).status_code == 200
-    denied = create(client, code="MES-002")
+    assert operator.get(URL).status_code == 200
+    denied = create(operator, code="MES-002")
     assert denied.status_code == 403
     assert denied.json()["detail"] == "No tiene permisos para realizar esta acción."
 
 
 def test_list_is_paginated_and_filtered(client):
-    as_role(client, "ADMIN")
     for i in range(1, 26):
         create(client, code=f"SIL-{i:03d}", name=f"Silla {i}")
     create(client, code="MES-001", name="Mesa")
@@ -91,7 +80,6 @@ def test_list_is_paginated_and_filtered(client):
 
 
 def test_unknown_product_returns_404(client):
-    as_role(client, "ADMIN")
     response = client.get(f"{URL}00000000-0000-0000-0000-000000000000/")
 
     assert response.status_code == 404

@@ -1,7 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 
 import { ApiError } from "@/shared/api/http";
-import { hasPermission, useDevRole } from "@/shared/auth/devRole";
+import { hasPermission, useSession } from "@/shared/auth/session";
 import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
 
@@ -22,8 +22,8 @@ const inputClass =
   "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-200";
 
 export function ProductsPage() {
-  const role = useDevRole();
-  const canEdit = hasPermission(role, "CATALOG_EDIT");
+  const { user } = useSession();
+  const canEdit = hasPermission(user, "CATALOG_EDIT");
 
   const [draftFilters, setDraftFilters] = useState<ProductFilters>(EMPTY_FILTERS);
   const [filters, setFilters] = useState<ProductFilters>(EMPTY_FILTERS);

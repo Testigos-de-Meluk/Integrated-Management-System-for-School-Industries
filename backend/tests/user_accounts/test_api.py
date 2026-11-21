@@ -2,8 +2,8 @@
 
 import pytest
 from django.core import mail
-from rest_framework.test import APIClient
 
+from modules.shared_kernel.domain.security import RoleType
 from modules.shared_kernel.infrastructure.models import AuditEntryModel
 from modules.user_accounts.domain.exceptions import DUPLICATE_EMAIL_MESSAGE
 from modules.user_accounts.infrastructure.models import UserModel
@@ -14,10 +14,9 @@ URL = "/api/users/"
 
 
 @pytest.fixture
-def client():
-    client = APIClient()
-    client.credentials(HTTP_X_DEV_ROLE="ADMIN")
-    return client
+def client(logged_in_client):
+    """Administrador session."""
+    return logged_in_client(RoleType.ADMIN)
 
 
 def create(client, email="marta@empresa.com", **overrides):
@@ -81,10 +80,10 @@ def test_lifecycle_deactivate_activate_unlock_and_password(client):
     assert generated.status_code == 200
 
 
-def test_operator_is_denied(client):
-    client.credentials(HTTP_X_DEV_ROLE="OPERATOR")
+def test_operator_is_denied(logged_in_client):
+    operator = logged_in_client(RoleType.OPERATOR)
 
-    assert client.get(URL).status_code == 403
+    assert operator.get(URL).status_code == 403
 
 
 def test_list_filters_by_role_and_name(client):

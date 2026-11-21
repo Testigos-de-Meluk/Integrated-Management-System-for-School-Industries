@@ -1,10 +1,17 @@
 /** HTTP client for the IMSI REST API. All calls use relative URLs under /api. */
-import { getDevRole } from "@/shared/auth/devRole";
+import {
+  endSession,
+  getAccessToken,
+  getSessionState,
+  startSession,
+  type CurrentUser,
+} from "@/shared/auth/session";
 
-/** Error body returned by every API endpoint: a general message plus messages per field. */
+/** Error body returned by every API endpoint. */
 export type ApiErrorBody = {
   detail: string;
   errors: Record<string, string[]>;
+  code?: string;
 };
 
 export class ApiError extends Error {
@@ -19,8 +26,12 @@ export class ApiError extends Error {
 
   /** Field errors, e.g. `{ code: ["El código ... ya se encuentra registrado"] }`. */
   get fieldErrors(): Record<string, string[]> {
-    const body = this.body as Partial<ApiErrorBody> | null;
-    return body?.errors ?? {};
+    return (this.body as Partial<ApiErrorBody> | null)?.errors ?? {};
+  }
+
+  /** Machine-readable code, e.g. "SESSION_EXPIRED", "ACCOUNT_LOCKED". */
+  get code(): string | undefined {
+    return (this.body as Partial<ApiErrorBody> | null)?.code;
   }
 }
 
@@ -31,7 +42,7 @@ function readDetail(body: unknown): string | null {
   return null;
 }
 
-type QueryValue = string | number | undefined | null;
+type QueryValue = string | number | boolean | undefined | null;
 
 function buildUrl(path: string, query?: Record<string, QueryValue>): string {
   const params = new URLSearchParams();
@@ -44,20 +55,83 @@ function buildUrl(path: string, query?: Record<string, QueryValue>): string {
   return `/api${path}${search ? `?${search}` : ""}`;
 }
 
-async function request<T>(
-  method: string,
-  path: string,
-  options: { body?: unknown; query?: Record<string, QueryValue> } = {},
-): Promise<T> {
-  const response = await fetch(buildUrl(path, options.query), {
+// --- Session renewal ---------------------------------------------------------------------------
+
+export type SessionPayload = {
+  access_token: string;
+  access_expires_at: string;
+  user: CurrentUser;
+};
+
+let refreshInFlight: Promise<boolean> | null = null;
+
+/**
+ * Asks for a new access token using the httpOnly refresh cookie. Concurrent callers share one
+ * request: the refresh token rotates on every use, so two parallel refreshes would look like a
+ * stolen token to the backend and close the session.
+ */
+export function refreshSession(): Promise<boolean> {
+  if (!refreshInFlight) {
+    refreshInFlight = (async () => {
+      const wasAuthenticated = getSessionState().status === "authenticated";
+      try {
+        const response = await fetch("/api/auth/refresh/", {
+          method: "POST",
+          headers: { Accept: "application/json" },
+        });
+        const body: unknown = await response.json().catch(() => null);
+        if (response.ok) {
+          const session = body as SessionPayload;
+          startSession(session.access_token, session.user);
+          return true;
+        }
+        // Only explain why when the user was inside the app (not on a plain page load).
+        endSession(wasAuthenticated ? readDetail(body) : null);
+        return false;
+      } catch {
+        endSession(wasAuthenticated ? "No fue posible conectar con el servidor." : null);
+        return false;
+      }
+    })().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
+}
+
+// --- Requests ----------------------------------------------------------------------------------
+
+type RequestOptions = {
+  body?: unknown;
+  query?: Record<string, QueryValue>;
+  /** Login endpoints: no token, and a 401 must not trigger a session refresh. */
+  anonymous?: boolean;
+};
+
+async function send(method: string, path: string, options: RequestOptions): Promise<Response> {
+  const token = options.anonymous ? null : getAccessToken();
+  return fetch(buildUrl(path, options.query), {
     method,
     headers: {
       Accept: "application/json",
-      "X-Dev-Role": getDevRole(), // TEMPORARY: replaced by the JWT once login exists.
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
     },
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   });
+}
+
+async function request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
+  let response = await send(method, path, options);
+
+  // The access token lasts 5 minutes: on 401, renew it once and retry. If the session itself
+  // ended (inactivity, login elsewhere, deactivated account) the refresh fails and the app goes
+  // back to the login screen with the reason.
+  if (response.status === 401 && !options.anonymous && (await refreshSession())) {
+    response = await send(method, path, options);
+  }
+
+  if (response.status === 204) return undefined as T;
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     throw new ApiError(response.status, body);
@@ -69,9 +143,11 @@ export const api = {
   get: <T>(path: string, query?: Record<string, QueryValue>) => request<T>("GET", path, { query }),
   post: <T>(path: string, body?: unknown) => request<T>("POST", path, { body }),
   patch: <T>(path: string, body: unknown) => request<T>("PATCH", path, { body }),
+  /** For the login steps, before having an access token. */
+  postAnonymous: <T>(path: string, body: unknown) =>
+    request<T>("POST", path, { body, anonymous: true }),
 };
 
-/** Kept for existing callers. */
 export const apiGet = <T>(path: string) => api.get<T>(path);
 
 /** Standard envelope of every paginated listing. */
