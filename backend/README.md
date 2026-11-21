@@ -56,6 +56,39 @@ backend/
 Rules 1 and 2 (and "inner layers never import infrastructure") are checked automatically by
 [import-linter](https://import-linter.readthedocs.io/). See the contracts in `pyproject.toml`.
 
+## Module template: `products`
+
+`products` is the **reference implementation**. Copy its structure when building a new module:
+
+| Layer | File | What it contains |
+|---|---|---|
+| domain | `domain/product.py` | Aggregate with its invariants and a factory method (`Product.register`). Pure Python. |
+| domain | `domain/exceptions.py` | Business errors extending the shared kernel ones (`ValidationError`, `NotFoundError`, `ConflictError`). Messages in Spanish. |
+| ports | `ports/inbound/product_use_cases.py` | Use-case interface + command/filter dataclasses. |
+| ports | `ports/outbound/product_repository.py` | Repository interface. |
+| application | `application/product_service.py` | Implements the inbound port: checks permissions (`actor.require(...)`), calls the domain, saves through the repository, writes the audit record. |
+| infrastructure | `models.py` + `migrations/` | Django ORM model (persistence only). |
+| infrastructure | `persistence/mappers.py`, `persistence/django_product_repository.py` | Entity ↔ model mapping and the repository adapter. |
+| infrastructure | `api/serializers.py`, `api/views.py`, `api/urls.py` | DTOs, thin REST controllers documented with `@extend_schema`, routes. |
+| infrastructure | `dependencies.py` | Composition root: the only place that chooses which adapter implements each port. |
+
+Tests follow the same split (`tests/products/`): domain tests (no database), use-case tests with
+in-memory fakes (`fakes.py`, no database), and API tests marked `django_db`.
+
+### Shared kernel pieces every module uses
+
+- `shared_kernel.domain.security`: `Actor`, `RoleType`, `Permission` and the fixed role-permission matrix.
+- `shared_kernel.domain.pagination`: `PageRequest` (max 50) and `Page`.
+- `shared_kernel.domain.audit` + `ports.outbound.audit_logger`: audit records and the `AuditLogger`
+  port. **Temporary adapter:** `LoggingAuditLogger` writes to the log until the insert-only
+  `AUDIT_ENTRY` table arrives with the authentication module.
+- `shared_kernel.infrastructure.api`: `get_current_actor`, the error handler (single error format
+  `{"detail", "errors"}`) and pagination helpers.
+
+> **Temporary role selection.** Until the authentication module exists, the client chooses its role
+> with the `X-Dev-Role` header (`SUPERADMIN`, `ADMIN`, `OPERATOR`; default `SUPERADMIN`). It only works
+> when `DEV_ROLE_HEADER_ENABLED` is on (development and tests); anywhere else every request is denied.
+
 ## Common commands
 
 Run them inside the backend container (the project must be running with `docker compose up`):

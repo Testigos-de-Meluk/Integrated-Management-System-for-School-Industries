@@ -117,7 +117,15 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 20,
     # OpenAPI 3 schema generated from views and serializers (drf-spectacular).
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # Single error format: {"detail": "...", "errors": {"field": ["..."]}}.
+    "EXCEPTION_HANDLER": (
+        "modules.shared_kernel.infrastructure.api.exceptions.api_exception_handler"
+    ),
 }
+
+# TEMPORARY (until the authentication module exists): lets the client choose its role with the
+# ``X-Dev-Role`` header. Off by default; only development and tests turn it on.
+DEV_ROLE_HEADER_ENABLED = env_bool("DEV_ROLE_HEADER_ENABLED", False)
 
 # --- API documentation (drf-spectacular) ------------------------------------------------------
 # Swagger UI: /api/docs/   ReDoc: /api/redoc/   Raw schema: /api/schema/

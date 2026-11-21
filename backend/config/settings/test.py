@@ -7,6 +7,12 @@ os.environ.setdefault("DJANGO_SECRET_KEY", "test-only-secret-key")
 from .base import *  # noqa: E402, F403
 
 DEBUG = False
+DEV_ROLE_HEADER_ENABLED = True
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
+
+# Tests run against PostgreSQL (inside Docker). TEST_DATABASE=sqlite allows a quick run on a
+# machine without PostgreSQL; the official suite always uses PostgreSQL.
+if os.environ.get("TEST_DATABASE") == "sqlite":
+    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}}
