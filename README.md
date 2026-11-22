@@ -87,6 +87,7 @@ Integrated-Management-System-for-School-Industries/
 │   │   ├── pages/
 │   │   └── shared/             # API client and shared components
 │   └── Dockerfile
+├── CLAUDE.md                   # Working guide: conventions, architecture rules, roadmap
 ├── docker-compose.yml          # Local development environment
 ├── .env.example                # Environment variables template (copy to .env)
 ├── Workshops/
