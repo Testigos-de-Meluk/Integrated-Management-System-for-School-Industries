@@ -1,10 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
-import { useForm, type FieldValues, type Path, type UseFormSetError } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { ApiError } from "@/shared/api/http";
 import { ROLE_LABELS, type Role } from "@/shared/auth/session";
+import { applyServerErrors } from "@/shared/forms/serverErrors";
 import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
 import { TextField } from "@/shared/ui/TextField";
@@ -241,18 +241,4 @@ function FormFooter({
       </div>
     </>
   );
-}
-
-/** Puts server field errors under their inputs; returns a general message when none applies. */
-function applyServerErrors<T extends FieldValues>(
-  error: unknown,
-  values: T,
-  setError: UseFormSetError<T>,
-): string | null {
-  if (!(error instanceof ApiError)) {
-    return "No fue posible conectar con el servidor. Intente de nuevo.";
-  }
-  const fields = Object.entries(error.fieldErrors).filter(([field]) => field in values);
-  fields.forEach(([field, messages]) => setError(field as Path<T>, { message: messages[0] }));
-  return fields.length === 0 ? error.message : null;
 }

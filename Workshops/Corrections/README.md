@@ -112,7 +112,10 @@ They will be defined during development.
 | FR-02-01 … FR-02-04 | Kept | The catalog shows no official price (RN-M2-01). The internal historical price range is only a reference for the estimator and is never shown to customers. |
 | FR-02-05 | **Rewritten** | See below. |
 | FR-02-06 | **Changed** | See below. |
-| FR-02-07 … FR-02-11 | Kept | A virtual-assistant requester becomes a customer only when a user with `CUSTOMER_MANAGE` registers them. |
+| FR-02-07, FR-02-08 | Kept | A virtual-assistant requester becomes a customer only when a user with `CUSTOMER_MANAGE` registers them. The profile shows one primary phone and one email (the ones captured at registration). |
+| FR-02-09 | **Changed** | **Identification is validated:** natural person = ID document of 5–15 digits; legal entity = NIT of 9 digits **plus its check digit, verified with the DIAN modulo-11 algorithm** (stored as `900456789-1`). The *commercial contact* is an **optional** field of the form (it is shown in the list and can be filtered). |
+| FR-02-10 | **Changed** | The commercial contact can also be edited. |
+| FR-02-11 | **Changed** | A deactivated customer **can be reactivated** (same as products and accounts), with confirmation and audit. |
 | FR-02-12 | Kept | — |
 | FR-02-13 | **Changed** | Approval requires a **final unit price for every item** and a dispatch date (suggested or manual). The system stores `final_unit_price`, `final_total`, `approved_at` and `approved_by`, and the official PDF uses the final prices. The audit entry records the estimated range and the final price (RN-M2-02). |
 | FR-02-14 | **Changed** | A modified unit price applies only to that quotation and becomes a data point for future estimations (US 2.28.3). |
@@ -196,6 +199,8 @@ samples keep no personal data (Law 1581 of 2012).
 | **US 1.23** | **New** | *As an Administrador, I want to unlock a locked account so that an employee can work again without waiting.* Criteria: (1) user management shows locked accounts; (2) unlocking resets the counter and `locked_until`; (3) the action is audited; (4) the Operador cannot unlock ("No tiene permisos para realizar esta acción"). |
 | US 2.7 | **Changed** | Criterion 2.7.3 also accepts products proposed from free text, which must be confirmed by the customer (see US 2.41). |
 | US 2.11 | **Changed** | Criterion 2.11.2: "real delivery times" = `actual_dispatch_date − approved_at`, using the buckets and minimum samples of FR-02-06. |
+| US 2.18 | **Changed** | New criterion 2.18.6: an inactive customer can be reactivated; it becomes available again for new quotations and orders. |
+| US 2.23 | **Changed** | Only the **author** of a note can edit it (other users see it read-only). Deleting remains allowed to any user with permission (US 2.24). |
 | US 2.27 | **Changed** | New criterion 2.27.7: approval is blocked until every item has a final unit price and the quotation has a dispatch date. |
 | US 2.30 … US 2.34 | **Changed** | Every "order" / "commercial order" means **approved quotation**. |
 | US 2.35 | **Changed** | Criterion 2.35.3: the list offers no "register new O.T." action; O.T.s are generated from approved quotations (US 2.37). |

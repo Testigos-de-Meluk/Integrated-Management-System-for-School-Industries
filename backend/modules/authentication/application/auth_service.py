@@ -229,7 +229,11 @@ class AuthService(AuthUseCases):
             self._sessions.update(session)
         # The role is read from the account on every request, so role changes apply at once.
         return Actor.for_role(
-            RoleType(account.role), user_id=account.id, source_ip=source_ip, session_id=session.id
+            RoleType(account.role),
+            user_id=account.id,
+            source_ip=source_ip,
+            session_id=session.id,
+            display_name=account.full_name,
         )
 
     def current_user(self, actor: Actor) -> CurrentUser:

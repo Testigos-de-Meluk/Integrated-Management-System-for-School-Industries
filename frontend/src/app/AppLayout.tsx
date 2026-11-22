@@ -17,6 +17,7 @@ type NavItem = { to: string; label: string; end?: boolean; permission?: Permissi
 const NAV_ITEMS: NavItem[] = [
   { to: "/", label: "Inicio", end: true },
   { to: "/catalogo", label: "Catálogo", permission: "CATALOG_VIEW" },
+  { to: "/clientes", label: "Clientes", permission: "CUSTOMER_MANAGE" },
   { to: "/cuentas", label: "Cuentas y permisos", permission: "USER_MANAGE" },
 ];
 

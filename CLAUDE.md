@@ -97,6 +97,12 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
   inactivity, deactivated account; the role is read from the account on each request. Lockout:
   3 failures (password or code) → 15 minutes. TOTP secrets encrypted with Fernet.
 - **State transitions** are `POST` actions (`/activate/`, `/deactivate/`, later `/approve/`…).
+- **Customers:** abstract `Customer` with `NaturalPerson` / `LegalEntity` (factory
+  `Customer.register`). NIT validated with the DIAN check digit; natural ID 5–15 digits; tax id and
+  type immutable; inactive customers are read-only and can be reactivated. Profile route
+  `/clientes/:taxId` (API `/api/customers/by-tax-id/<tax_id>/` accepts any common format).
+  Commercial notes: only the author edits, anyone with `CUSTOMER_MANAGE` deletes (text kept in the
+  audit log); the author's name is a snapshot taken from `Actor.display_name`.
 - **Frontend:** `shared/api/http.ts` adds the Bearer token, refreshes once on 401 (single-flight)
   and sends the user to `/login` with the reason. Permissions from `useSession().user`
   (`hasPermission`) only hide UI; the backend enforces them.
@@ -110,8 +116,8 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
 | 0 | Documentation corrections | Done |
 | 1 | Skeleton, Docker, Products (template) | Done |
 | 2 | Authentication + user accounts + audit (backend and frontend) | Done |
-| 3 | Customers and commercial notes | **Next** |
-| 4 | Chatbot (hybrid assistant) + Quotations | Pending |
+| 3 | Customers and commercial notes | Done |
+| 4 | Chatbot (hybrid assistant) + Quotations | **Next** |
 | 5 | Siigo export queue + Work orders | Pending |
 | 6 | Backups + WhatsApp price history import | Pending |
 
@@ -126,6 +132,9 @@ The first push/PR happens when the user decides (first release with several modu
 - Dashboard, weekly report and audit-log screens: define during development.
 - Production keys `JWT_SIGNING_KEY`, `TOTP_ENCRYPTION_KEY`: required before any real deployment.
 - Frontend bundle > 500 kB: split by route later.
+- **Customer history** (quotations + work orders on the 360 profile) uses the temporary
+  `EmptyCommercialHistory` adapter: replace it with one that calls the quotations / work orders
+  inbound ports in steps 4 and 5.
 
 ## Environment notes
 

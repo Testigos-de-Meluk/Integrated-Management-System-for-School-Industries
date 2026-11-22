@@ -3,6 +3,8 @@ import { createBrowserRouter } from "react-router";
 import { AppLayout } from "@/app/AppLayout";
 import { RequireAuth, RequirePermission } from "@/app/guards";
 import { LoginPage } from "@/features/auth/LoginPage";
+import { CustomerProfilePage } from "@/features/customers/CustomerProfilePage";
+import { CustomersPage } from "@/features/customers/CustomersPage";
 import { ProductsPage } from "@/features/products/ProductsPage";
 import { UsersPage } from "@/features/users/UsersPage";
 import { HomePage } from "@/pages/HomePage";
@@ -23,6 +25,22 @@ export const router = createBrowserRouter([
         element: (
           <RequirePermission permission="CATALOG_VIEW">
             <ProductsPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: "/clientes",
+        element: (
+          <RequirePermission permission="CUSTOMER_MANAGE">
+            <CustomersPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: "/clientes/:taxId",
+        element: (
+          <RequirePermission permission="CUSTOMER_MANAGE">
+            <CustomerProfilePage />
           </RequirePermission>
         ),
       },

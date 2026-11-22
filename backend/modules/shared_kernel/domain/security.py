@@ -61,6 +61,7 @@ class Actor:
     user_id: UUID | None = None
     source_ip: str | None = None
     session_id: UUID | None = None
+    display_name: str | None = None  # full name, e.g. to sign commercial notes
 
     @classmethod
     def for_role(
@@ -69,6 +70,7 @@ class Actor:
         user_id: UUID | None = None,
         source_ip: str | None = None,
         session_id: UUID | None = None,
+        display_name: str | None = None,
     ) -> "Actor":
         return cls(
             role=role,
@@ -76,6 +78,7 @@ class Actor:
             user_id=user_id,
             source_ip=source_ip,
             session_id=session_id,
+            display_name=display_name,
         )
 
     def has_permission(self, permission: Permission) -> bool:

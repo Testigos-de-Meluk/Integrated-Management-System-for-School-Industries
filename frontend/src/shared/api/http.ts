@@ -143,6 +143,7 @@ export const api = {
   get: <T>(path: string, query?: Record<string, QueryValue>) => request<T>("GET", path, { query }),
   post: <T>(path: string, body?: unknown) => request<T>("POST", path, { body }),
   patch: <T>(path: string, body: unknown) => request<T>("PATCH", path, { body }),
+  delete: <T>(path: string) => request<T>("DELETE", path),
   /** For the login steps, before having an access token. */
   postAnonymous: <T>(path: string, body: unknown) =>
     request<T>("POST", path, { body, anonymous: true }),
