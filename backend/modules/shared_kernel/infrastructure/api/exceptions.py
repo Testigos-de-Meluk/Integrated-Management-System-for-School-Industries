@@ -15,6 +15,7 @@ from modules.shared_kernel.domain.exceptions import (
     DomainError,
     NotFoundError,
     PermissionDeniedError,
+    ServiceUnavailableError,
     ValidationError,
 )
 
@@ -24,6 +25,7 @@ _STATUS_BY_ERROR: list[tuple[type[DomainError], int]] = [
     (PermissionDeniedError, status.HTTP_403_FORBIDDEN),
     (NotFoundError, status.HTTP_404_NOT_FOUND),
     (ConflictError, status.HTTP_409_CONFLICT),
+    (ServiceUnavailableError, status.HTTP_503_SERVICE_UNAVAILABLE),
     (DomainError, status.HTTP_400_BAD_REQUEST),
 ]
 

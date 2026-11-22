@@ -16,9 +16,7 @@ from modules.customers.domain.tax_id import search_key
 from modules.customers.infrastructure.models import CommercialNoteModel, CustomerModel
 from modules.customers.ports.inbound.customer_use_cases import CustomerFilters
 from modules.customers.ports.outbound.repositories import (
-    CommercialHistoryProvider,
     CustomerRepository,
-    HistoryEntry,
     NoteRepository,
 )
 from modules.shared_kernel.domain.pagination import Page, PageRequest
@@ -137,11 +135,3 @@ class DjangoNoteRepository(NoteRepository):
         start = page_request.offset
         models = queryset.order_by("-created_at")[start : start + page_request.size]
         return Page([_note_to_domain(m) for m in models], total, page_request)
-
-
-class EmptyCommercialHistory(CommercialHistoryProvider):
-    """TEMPORARY adapter: quotations and work orders do not exist yet (roadmap steps 4 and 5).
-    When they do, a new adapter will ask their inbound ports; the use case will not change."""
-
-    def history_for(self, customer_id: UUID, page_request: PageRequest) -> Page[HistoryEntry]:
-        return Page([], 0, page_request)

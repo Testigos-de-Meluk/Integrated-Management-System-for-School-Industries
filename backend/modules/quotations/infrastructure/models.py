@@ -35,6 +35,17 @@ class QuotationModel(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices)
     rejection_reason = models.TextField(blank=True, default="")
     access_key = models.CharField(max_length=64)
+    # Stored totals so the review tray can filter by amount (US 2.26.4).
+    estimated_total_min = models.DecimalField(
+        max_digits=18, decimal_places=0, null=True, blank=True
+    )
+    estimated_total_max = models.DecimalField(
+        max_digits=18, decimal_places=0, null=True, blank=True
+    )
+    final_total = models.DecimalField(max_digits=18, decimal_places=0, null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    approved_by_id = models.UUIDField(null=True, blank=True)  # user_accounts: plain UUID
+    approved_by_name = models.CharField(max_length=150, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -62,6 +73,8 @@ class QuotationItemModel(models.Model):
     unit_price_min = models.DecimalField(max_digits=14, decimal_places=0, null=True, blank=True)
     unit_price_max = models.DecimalField(max_digits=14, decimal_places=0, null=True, blank=True)
     final_unit_price = models.DecimalField(max_digits=14, decimal_places=0, null=True, blank=True)
+    # Where the estimated range came from: HISTORY (statistics) or AI; empty = no estimate.
+    price_source = models.CharField(max_length=10, blank=True, default="")
 
     class Meta:
         db_table = "quotation_item"

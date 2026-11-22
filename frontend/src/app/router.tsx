@@ -7,6 +7,8 @@ import { CustomerProfilePage } from "@/features/customers/CustomerProfilePage";
 import { CustomersPage } from "@/features/customers/CustomersPage";
 import { ProductsPage } from "@/features/products/ProductsPage";
 import { QuoteRequestPage } from "@/features/quote-request/QuoteRequestPage";
+import { QuotationReviewPage } from "@/features/quotations/QuotationReviewPage";
+import { QuotationsPage } from "@/features/quotations/QuotationsPage";
 import { UsersPage } from "@/features/users/UsersPage";
 import { HomePage } from "@/pages/HomePage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
@@ -44,6 +46,22 @@ export const router = createBrowserRouter([
         element: (
           <RequirePermission permission="CUSTOMER_MANAGE">
             <CustomerProfilePage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: "/cotizaciones",
+        element: (
+          <RequirePermission permission="QUOTATION_MANAGE">
+            <QuotationsPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: "/cotizaciones/:quotationId",
+        element: (
+          <RequirePermission permission="QUOTATION_MANAGE">
+            <QuotationReviewPage />
           </RequirePermission>
         ),
       },

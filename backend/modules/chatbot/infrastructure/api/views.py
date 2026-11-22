@@ -26,12 +26,15 @@ from modules.shared_kernel.infrastructure.api.pagination import page_payload
 
 from .serializers import (
     AccessKeySerializer,
+    AssistantOptionsSerializer,
     CatalogItemSerializer,
     CatalogPageSerializer,
     CatalogQuerySerializer,
     EstimateRequestSerializer,
     EstimateSerializer,
     PreliminaryQuotationSerializer,
+    ProposalRequestSerializer,
+    ProposalSerializer,
     QuotationRequestSerializer,
 )
 
@@ -64,6 +67,34 @@ class PublicCatalogView(PublicView):
             data.get("search"), PageRequest(page=data["page"], size=data["page_size"])
         )
         return Response(page_payload(page, CatalogItemSerializer))
+
+
+class AssistantOptionsView(PublicView):
+    throttle_scope = "public_catalog"
+
+    @extend_schema(
+        tags=TAG,
+        summary="Which optional assistant features are available (AI free text)",
+        responses=AssistantOptionsSerializer,
+    )
+    def get(self, request: Request) -> Response:
+        return Response(AssistantOptionsSerializer(quotation_requests().assistant_options()).data)
+
+
+class ProposalView(PublicView):
+    throttle_scope = "public_proposal"
+
+    @extend_schema(
+        tags=TAG,
+        summary="Describe your needs in free text; the AI proposes catalog products (not stored)",
+        request=ProposalRequestSerializer,
+        responses={200: ProposalSerializer, 503: OpenApiResponse(description="AI unavailable")},
+    )
+    def post(self, request: Request) -> Response:
+        payload = ProposalRequestSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        proposal = quotation_requests().propose_items(payload.validated_data["description"])
+        return Response(ProposalSerializer(proposal).data)
 
 
 class EstimateView(PublicView):

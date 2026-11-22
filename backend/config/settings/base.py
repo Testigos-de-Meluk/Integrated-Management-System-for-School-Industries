@@ -130,6 +130,7 @@ REST_FRAMEWORK = {
         "public_estimate": env("THROTTLE_PUBLIC_ESTIMATE", "60/min"),
         "public_quotation": env("THROTTLE_PUBLIC_QUOTATION", "10/hour"),
         "public_document": env("THROTTLE_PUBLIC_DOCUMENT", "60/hour"),
+        "public_proposal": env("THROTTLE_PUBLIC_PROPOSAL", "20/hour"),
     },
     # Number of reverse proxies in front of Django: the client IP is taken from X-Forwarded-For
     # only behind them (0 = use the direct connection address, never a header the client sets).
@@ -158,6 +159,9 @@ SPECTACULAR_SETTINGS = {
     "ENUM_NAME_OVERRIDES": {
         "ActiveStatusEnum": "modules.products.ports.inbound.product_use_cases.PRODUCT_STATUSES",
         "RoleEnum": "modules.user_accounts.ports.inbound.user_account_use_cases.ROLES",
+        "QuotationStatusEnum": (
+            "modules.quotations.ports.inbound.quotation_review.QUOTATION_STATUSES"
+        ),
     },
 }
 
@@ -174,6 +178,18 @@ CACHES = {
 
 QUOTATION_VALIDITY_DAYS = int(env("QUOTATION_VALIDITY_DAYS", "15"))
 PRICE_LOOKBACK_DAYS = int(env("PRICE_LOOKBACK_DAYS", "365"))
+
+# --- AI provider (OpenAI-compatible: OpenRouter by default) -------------------------------------
+# Without LLM_API_KEY the AI features are off: the free-text option is hidden and prices come only
+# from statistics.
+LLM_BASE_URL = env("LLM_BASE_URL", "https://openrouter.ai/api/v1")
+LLM_API_KEY = env("LLM_API_KEY", "")
+LLM_MODEL = env("LLM_MODEL", "google/gemma-4-31b-it:free")
+LLM_TIMEOUT_SECONDS = float(env("LLM_TIMEOUT_SECONDS", "20"))
+# Header name for a per-call session id, only for providers that require one
+# (OpenCode Go: "x-opencode-session"). Empty = not sent.
+LLM_SESSION_HEADER = env("LLM_SESSION_HEADER", "")
+AI_PRICE_CACHE_SECONDS = int(env("AI_PRICE_CACHE_SECONDS", str(6 * 3600)))
 
 # --- Redis / Celery ---------------------------------------------------------------------------
 

@@ -8,12 +8,15 @@ from modules.customers.application.customer_service import CustomerService
 from modules.customers.domain.commercial_note import CommercialNote
 from modules.customers.domain.customer import Customer
 from modules.customers.domain.exceptions import CustomerNotFound, DuplicateTaxId
-from modules.customers.infrastructure.persistence.repositories import EmptyCommercialHistory
 from modules.customers.ports.inbound.customer_use_cases import (
     CustomerFilters,
     RegisterCustomerCommand,
 )
-from modules.customers.ports.outbound.repositories import CustomerRepository, NoteRepository
+from modules.customers.ports.outbound.repositories import (
+    CommercialHistoryProvider,
+    CustomerRepository,
+    NoteRepository,
+)
 from modules.shared_kernel.domain.audit import AuditAction
 from modules.shared_kernel.domain.exceptions import PermissionDeniedError
 from modules.shared_kernel.domain.pagination import Page, PageRequest
@@ -71,9 +74,14 @@ def audit():
     return SpyAuditLogger()
 
 
+class EmptyHistory(CommercialHistoryProvider):
+    def history_for(self, customer_id, page_request):
+        return Page([], 0, page_request)
+
+
 @pytest.fixture
 def service(audit):
-    return CustomerService(InMemoryCustomers(), InMemoryNotes(), EmptyCommercialHistory(), audit)
+    return CustomerService(InMemoryCustomers(), InMemoryNotes(), EmptyHistory(), audit)
 
 
 def register(service, actor=OPERATOR, tax_id="800197268-4"):

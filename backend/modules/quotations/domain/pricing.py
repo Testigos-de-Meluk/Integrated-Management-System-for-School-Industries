@@ -1,11 +1,24 @@
-"""Statistical price range from historical unit prices (fallback strategy of FR-02-05)."""
+"""Estimated prices (FR-02-05, RN-M2-01): always a range, and where it came from."""
 
+from dataclasses import dataclass
 from decimal import Decimal
+from enum import StrEnum
 from statistics import quantiles
 
 from modules.shared_kernel.domain.money import PriceRange
 
 MIN_SAMPLES_FOR_PERCENTILES = 3
+
+
+class PriceSource(StrEnum):
+    HISTORY = "HISTORY"  # statistics of this product's own approved prices
+    AI = "AI"  # AI estimate based on approved prices of similar products
+
+
+@dataclass(frozen=True, slots=True)
+class PriceEstimate:
+    range: PriceRange
+    source: PriceSource
 
 
 def range_from_samples(samples: list[Decimal]) -> PriceRange | None:

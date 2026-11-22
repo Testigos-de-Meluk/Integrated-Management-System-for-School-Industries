@@ -17,7 +17,19 @@ export type EstimatedItem = {
   unit_price_max: string | null;
   subtotal_min: string | null;
   subtotal_max: string | null;
+  /** HISTORY = this product's approved prices; AI = estimated from similar products. */
+  price_source: "HISTORY" | "AI" | null;
 };
+
+export type ProposedItem = {
+  product_id: string;
+  product_code: string;
+  description: string;
+  unit_of_measure: string;
+  quantity: number;
+};
+
+export type Proposal = { items: ProposedItem[]; unavailable: string[] };
 
 export type Estimate = {
   items: EstimatedItem[];
@@ -66,7 +78,18 @@ export function useEstimate(items: RequestedItem[]) {
   });
 }
 
+/** Optional features: the free-text option only exists when an AI provider is configured. */
+export function useAssistantOptions() {
+  return useQuery({
+    queryKey: ["assistant-options"],
+    queryFn: () => api.get<{ free_text_enabled: boolean }>("/chatbot/assistant/"),
+    staleTime: 5 * 60_000,
+  });
+}
+
 export const quoteApi = {
+  propose: (description: string) =>
+    api.postAnonymous<Proposal>("/chatbot/proposal/", { description }),
   request: (contact: ContactData, items: RequestedItem[]) =>
     api.postAnonymous<PreliminaryQuotation>("/chatbot/quotations/", { ...contact, items }),
   email: (quotation: PreliminaryQuotation) =>

@@ -45,6 +45,13 @@ class ConflictError(DomainError):
     default_message = "La operación no es posible en el estado actual."
 
 
+class ServiceUnavailableError(DomainError):
+    """An external service the operation depends on (e.g. the AI provider) failed: HTTP 503."""
+
+    default_message = "El servicio no está disponible en este momento. Intente más tarde."
+    code = "SERVICE_UNAVAILABLE"
+
+
 class AuthenticationError(DomainError):
     """The caller is not (or no longer) authenticated: HTTP 401."""
 

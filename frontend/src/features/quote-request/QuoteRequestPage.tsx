@@ -11,11 +11,13 @@ import { TextField } from "@/shared/ui/TextField";
 
 import {
   quoteApi,
+  useAssistantOptions,
   useEstimate,
   usePublicCatalog,
   type CatalogItem,
   type ContactData,
   type PreliminaryQuotation,
+  type Proposal,
 } from "./api";
 
 type Selection = Map<string, { product: CatalogItem; quantity: number }>;
@@ -208,10 +210,18 @@ function ProductsStep({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const options = useAssistantOptions();
+
   const setQuantity = (product: CatalogItem, quantity: number) => {
     const next = new Map(selection);
     if (quantity > 0) next.set(product.id, { product, quantity });
     else next.delete(product.id);
+    onChange(next);
+  };
+
+  const addProposed = (lines: { product: CatalogItem; quantity: number }[]) => {
+    const next = new Map(selection);
+    lines.forEach((line) => next.set(line.product.id, line));
     onChange(next);
   };
 
@@ -238,6 +248,7 @@ function ProductsStep({
           <h1 className="text-2xl font-semibold">Elige el mobiliario para tu institución</h1>
           <p className="text-sm text-slate-600">Productos disponibles. Indica la cantidad de cada uno.</p>
         </div>
+        {options.data?.free_text_enabled && <FreeTextAssistant onAdd={addProposed} />}
         <input
           aria-label="Buscar producto"
           placeholder="Buscar por nombre o código…"
@@ -291,6 +302,7 @@ function ProductsStep({
                     <br />
                     <span className="text-xs text-slate-500">
                       {line ? formatRange(line.subtotal_min, line.subtotal_max) : "…"}
+                      {line?.price_source === "AI" && " · estimado con IA"}
                     </span>
                   </span>
                   <button type="button" className="text-xs text-red-700 hover:underline" onClick={() => setQuantity(product, 0)}>
@@ -312,6 +324,11 @@ function ProductsStep({
                 {estimate.data.unpriced_items} producto(s) con precio por confirmar.
               </p>
             )}
+            {estimate.data.items.some((i) => i.price_source === "AI") && (
+              <p className="mt-1 text-xs text-slate-500">
+                «Estimado con IA»: referencia calculada a partir de precios de productos similares.
+              </p>
+            )}
           </div>
         )}
         {error && <p role="alert" className="rounded-md bg-red-50 p-3 text-red-800">{error}</p>}
@@ -320,6 +337,141 @@ function ProductsStep({
         </Button>
         <p className="text-xs text-slate-500">Preliminar sujeta a aprobación.</p>
       </aside>
+    </div>
+  );
+}
+
+function FreeTextAssistant({
+  onAdd,
+}: {
+  onAdd: (lines: { product: CatalogItem; quantity: number }[]) => void;
+}) {
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [proposal, setProposal] = useState<Proposal | null>(null);
+  const [chosen, setChosen] = useState<Record<string, string>>({});
+
+  const propose = async () => {
+    setLoading(true);
+    setError(null);
+    setProposal(null);
+    try {
+      const result = await quoteApi.propose(text);
+      setProposal(result);
+      setChosen(Object.fromEntries(result.items.map((i) => [i.product_id, String(i.quantity)])));
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 429) {
+        setError("Has usado el asistente muchas veces. Intenta más tarde o elige en el catálogo.");
+      } else {
+        setError(err instanceof ApiError ? err.message : "No fue posible conectar con el servidor.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirm = () => {
+    if (!proposal) return;
+    onAdd(
+      proposal.items
+        .filter((item) => item.product_id in chosen && Number(chosen[item.product_id]) > 0)
+        .map((item) => ({
+          product: {
+            id: item.product_id,
+            code: item.product_code,
+            name: item.description,
+            unit_of_measure: item.unit_of_measure,
+          },
+          quantity: Math.min(100000, Number(chosen[item.product_id])),
+        })),
+    );
+    setProposal(null);
+    setText("");
+  };
+
+  const toggle = (id: string, quantity: number) => {
+    const next = { ...chosen };
+    if (id in next) delete next[id];
+    else next[id] = String(quantity);
+    setChosen(next);
+  };
+
+  return (
+    <div className="space-y-3 rounded-lg border border-sky-200 bg-sky-50/50 p-4">
+      <div>
+        <label htmlFor="needs" className="font-medium">¿Prefieres contarnos qué necesitas? (opcional)</label>
+        <p className="text-xs text-slate-600">
+          Descríbelo con tus palabras y el asistente te propondrá productos del catálogo. Tú decides
+          cuáles agregar. No incluyas datos personales: el texto no se guarda.
+        </p>
+      </div>
+      <textarea
+        id="needs"
+        rows={3}
+        maxLength={1000}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Por ejemplo: sillas y mesas para 3 salones de primaria de 35 estudiantes y un tablero por salón"
+        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+      />
+      <div className="flex flex-wrap items-center gap-3">
+        <Button variant="secondary" disabled={text.trim().length < 10 || loading} onClick={propose}>
+          {loading ? "Analizando…" : "Proponer productos"}
+        </Button>
+        <span className="text-xs text-slate-500">{text.length}/1000</span>
+      </div>
+      {error && <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+      {proposal && (
+        <div className="space-y-3 rounded-md border border-slate-200 bg-white p-3 text-sm">
+          {proposal.items.length === 0 ? (
+            <p className="text-slate-600">
+              No encontramos productos del catálogo para tu descripción. Búscalos en el catálogo.
+            </p>
+          ) : (
+            <>
+              <p className="font-medium">Propuesta del asistente: revisa y confirma</p>
+              <ul className="space-y-2">
+                {proposal.items.map((item) => {
+                  const selected = item.product_id in chosen;
+                  return (
+                    <li key={item.product_id} className="flex flex-wrap items-center gap-3">
+                      <label className="flex flex-1 items-center gap-2">
+                        <input type="checkbox" checked={selected} onChange={() => toggle(item.product_id, item.quantity)} />
+                        <span>
+                          {item.description}{" "}
+                          <span className="text-xs text-slate-500">{item.product_code}</span>
+                        </span>
+                      </label>
+                      <input
+                        aria-label={`Cantidad de ${item.description}`}
+                        inputMode="numeric"
+                        disabled={!selected}
+                        value={chosen[item.product_id] ?? ""}
+                        onChange={(e) => setChosen({ ...chosen, [item.product_id]: e.target.value.replace(/\D/g, "") })}
+                        className="w-24 rounded-md border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+          {proposal.unavailable.length > 0 && (
+            <p className="text-xs text-amber-800">
+              No disponibles en el catálogo: {proposal.unavailable.join(", ")}.
+            </p>
+          )}
+          <div className="flex gap-2">
+            {proposal.items.length > 0 && (
+              <Button disabled={Object.keys(chosen).length === 0} onClick={confirm}>
+                Agregar a mi selección
+              </Button>
+            )}
+            <Button variant="secondary" onClick={() => setProposal(null)}>Descartar</Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -411,7 +563,12 @@ function SummaryStep({ quotation, onRestart }: { quotation: PreliminaryQuotation
                   <span className="font-mono text-xs">{item.product_code}</span> · {item.description}
                 </td>
                 <td className="px-4 py-3">{item.quantity}</td>
-                <td className="px-4 py-3">{formatRange(item.unit_price_min, item.unit_price_max)}</td>
+                <td className="px-4 py-3">
+                  {formatRange(item.unit_price_min, item.unit_price_max)}
+                  {item.price_source === "AI" && (
+                    <span className="block text-xs text-slate-500">Estimado con IA (productos similares)</span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-right">{formatRange(item.subtotal_min, item.subtotal_max, "Por confirmar")}</td>
               </tr>
             ))}

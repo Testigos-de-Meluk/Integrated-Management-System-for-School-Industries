@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
 
+import { QUOTATION_STATUS_LABELS, type QuotationStatus } from "@/features/quotations/api";
 import { ApiError } from "@/shared/api/http";
 import { Button } from "@/shared/ui/Button";
 import { ConfirmDialog } from "@/shared/ui/ConfirmDialog";
@@ -118,7 +119,11 @@ export function CustomerProfilePage() {
                     <td className="py-2">{DOCUMENT_LABELS[entry.document_type]}</td>
                     <td className="py-2 font-mono text-xs">{entry.reference}</td>
                     <td className="py-2">{dateFormat.format(new Date(entry.date))}</td>
-                    <td className="py-2">{entry.status}</td>
+                    <td className="py-2">
+                      {entry.document_type === "QUOTATION"
+                        ? (QUOTATION_STATUS_LABELS[entry.status as QuotationStatus] ?? entry.status)
+                        : entry.status}
+                    </td>
                   </tr>
                 ))}
               </tbody>

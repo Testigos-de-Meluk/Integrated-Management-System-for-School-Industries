@@ -13,6 +13,8 @@ CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
+# Tests never call a real AI provider (no network, no API key, no cost).
+LLM_API_KEY = ""
 
 # Tests run against PostgreSQL (inside Docker). TEST_DATABASE=sqlite allows a quick run on a
 # machine without PostgreSQL; the official suite always uses PostgreSQL.

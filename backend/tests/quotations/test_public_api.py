@@ -165,3 +165,17 @@ def test_quotation_requests_are_rate_limited(products, monkeypatch):
         client.post(f"{BASE}quotations/", request_body(products), "json")
 
     assert client.post(f"{BASE}quotations/", request_body(products), "json").status_code == 429
+
+
+def test_ai_options_are_off_without_a_provider(products):
+    """Tests never have an AI key: the free-text option is hidden and asking for it is a 503."""
+    client = APIClient()
+    assert client.get(f"{BASE}assistant/").json() == {"free_text_enabled": False}
+
+    response = client.post(f"{BASE}proposal/", {"description": "Necesito 40 sillas"}, "json")
+    assert response.status_code == 503 and response.json()["code"] == "AI_UNAVAILABLE"
+
+    estimate = client.post(
+        f"{BASE}estimate/", {"items": request_body(products)["items"]}, "json"
+    ).json()
+    assert [i["price_source"] for i in estimate["items"]] == [None, None]

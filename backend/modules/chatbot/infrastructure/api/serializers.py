@@ -58,6 +58,11 @@ class EstimatedItemSerializer(serializers.Serializer):
     unit_price_max = serializers.CharField(allow_null=True)
     subtotal_min = serializers.CharField(allow_null=True)
     subtotal_max = serializers.CharField(allow_null=True)
+    price_source = serializers.ChoiceField(
+        choices=["HISTORY", "AI"],
+        allow_null=True,
+        help_text="HISTORY = this product's approved prices; AI = similar products",
+    )
 
 
 class EstimateSerializer(serializers.Serializer):
@@ -76,6 +81,27 @@ class PreliminaryQuotationSerializer(EstimateSerializer):
     requester_email = serializers.CharField()
     estimated_dispatch_date = serializers.DateField(allow_null=True)
     access_key = serializers.CharField(help_text="Required to download or email this quotation")
+
+
+class AssistantOptionsSerializer(serializers.Serializer):
+    free_text_enabled = serializers.BooleanField()
+
+
+class ProposalRequestSerializer(serializers.Serializer):
+    description = serializers.CharField(max_length=1000)
+
+
+class ProposedItemSerializer(serializers.Serializer):
+    product_id = serializers.UUIDField()
+    product_code = serializers.CharField()
+    description = serializers.CharField()
+    unit_of_measure = serializers.CharField()
+    quantity = serializers.IntegerField()
+
+
+class ProposalSerializer(serializers.Serializer):
+    items = ProposedItemSerializer(many=True)
+    unavailable = serializers.ListField(child=serializers.CharField())
 
 
 class AccessKeySerializer(serializers.Serializer):

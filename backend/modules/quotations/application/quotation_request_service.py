@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from modules.products.ports.inbound.product_catalog import ProductCatalog
+from modules.quotations.application.item_proposals import AI_UNAVAILABLE, ItemProposer
 from modules.quotations.domain.exceptions import InvalidQuotationItems, QuotationNotFound
 from modules.quotations.domain.quotation import (
     DEFAULT_VALIDITY_DAYS,
@@ -15,9 +16,12 @@ from modules.quotations.domain.quotation import (
     validate_quantity,
 )
 from modules.quotations.ports.inbound.quotation_requests import (
+    AssistantOptionsView,
     EstimatedItemView,
     EstimateView,
+    ItemProposalView,
     PreliminaryQuotationView,
+    ProposedItemView,
     QuotationDocument,
     QuotationRequests,
     RequestedItem,
@@ -31,7 +35,7 @@ from modules.quotations.ports.outbound.ports import (
     QuotationRepository,
 )
 from modules.shared_kernel.domain.audit import ActorType, AuditAction, AuditRecord
-from modules.shared_kernel.domain.exceptions import ValidationError
+from modules.shared_kernel.domain.exceptions import ServiceUnavailableError, ValidationError
 from modules.shared_kernel.domain.money import PriceRange
 from modules.shared_kernel.domain.notifications import Attachment, EmailMessage
 from modules.shared_kernel.ports.outbound.audit_logger import AuditLogger
@@ -56,6 +60,7 @@ def _item_view(item: QuotationItem) -> EstimatedItemView:
         unit_price_max=_money(unit.max if unit else None),
         subtotal_min=_money(subtotal.min if subtotal else None),
         subtotal_max=_money(subtotal.max if subtotal else None),
+        price_source=item.price_source.value if item.price_source else None,
     )
 
 
@@ -100,7 +105,9 @@ class QuotationRequestService(QuotationRequests):
         audit_logger: AuditLogger,
         validity_days: int = DEFAULT_VALIDITY_DAYS,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+        item_proposer: ItemProposer | None = None,
     ) -> None:
+        self._proposer = item_proposer
         self._repository = repository
         self._numbers = numbers
         self._catalog = catalog
@@ -111,6 +118,30 @@ class QuotationRequestService(QuotationRequests):
         self._audit = audit_logger
         self._validity_days = validity_days
         self._now = clock
+
+    # --- Free text (AI, US 2.41) -------------------------------------------------------------
+
+    def assistant_options(self) -> AssistantOptionsView:
+        enabled = self._proposer is not None and self._proposer.available
+        return AssistantOptionsView(free_text_enabled=enabled)
+
+    def propose_items(self, description: str) -> ItemProposalView:
+        if self._proposer is None:
+            raise ServiceUnavailableError(AI_UNAVAILABLE, code="AI_UNAVAILABLE")
+        proposal = self._proposer.propose(description)
+        return ItemProposalView(
+            items=tuple(
+                ProposedItemView(
+                    product_id=line.product.id,
+                    product_code=line.product.code,
+                    description=line.product.name,
+                    unit_of_measure=line.product.unit_of_measure,
+                    quantity=line.quantity,
+                )
+                for line in proposal.lines
+            ),
+            unavailable=proposal.unavailable,
+        )
 
     # --- Estimation (no persistence) ----------------------------------------------------------
 
@@ -202,10 +233,13 @@ class QuotationRequestService(QuotationRequests):
                 "Uno o más productos ya no están disponibles. Retírelos de la solicitud."
             )
 
+        for quantity in quantities.values():
+            validate_quantity(quantity)
+        estimates = self._prices.estimate(list(quantities.items()))  # one batch (one AI call)
         lines = []
         for product_id, quantity in quantities.items():
-            validate_quantity(quantity)
             product = available[product_id]
+            estimate = estimates.get(product_id)
             lines.append(
                 QuotationItem(
                     product_id=product.id,
@@ -213,7 +247,8 @@ class QuotationRequestService(QuotationRequests):
                     description=product.name,
                     unit_of_measure=product.unit_of_measure,
                     quantity=quantity,
-                    unit_price_range=self._prices.estimate(product.id, quantity),
+                    unit_price_range=estimate.range if estimate else None,
+                    price_source=estimate.source if estimate else None,
                 )
             )
         return lines

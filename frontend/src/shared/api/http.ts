@@ -151,6 +151,28 @@ export const api = {
 
 export const apiGet = <T>(path: string) => api.get<T>(path);
 
+/**
+ * Downloads a protected file (e.g. a PDF): a plain link cannot send the Bearer token, so the file
+ * is fetched with it and saved from memory.
+ */
+export async function downloadFile(path: string, fallbackName: string): Promise<void> {
+  let response = await send("GET", path, {});
+  if (response.status === 401 && (await refreshSession())) {
+    response = await send("GET", path, {});
+  }
+  if (!response.ok) {
+    throw new ApiError(response.status, await response.json().catch(() => null));
+  }
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? fallbackName;
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 /** Standard envelope of every paginated listing. */
 export type Paginated<T> = {
   count: number;

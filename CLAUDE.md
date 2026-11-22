@@ -111,16 +111,51 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
   `chatbot` module is the public adapter; it calls the `quotations.QuotationRequests` and
   `products.ProductCatalog` inbound ports. Prices are `PriceRange` (whole COP, `Decimal`); a line
   without history is `None` = "Precio por confirmar" (user decision). Estimator =
-  `FallbackPriceEstimator([AI (4c), StatisticalPriceEstimator])`, statistical = interquartile range
-  of APPROVED final unit prices in the last 365 days. Dispatch date = `NoHistoryDispatchDateEstimator`
+  `FallbackPriceEstimator` (see AI features below), statistical = interquartile range of APPROVED
+  final unit prices in the last 365 days. Dispatch date = `NoHistoryDispatchDateEstimator`
   until step 5. Quotation numbers `COT-<year>-<0001>` (locked sequence row). Validity 15 days.
   Data-processing consent (Law 1581) required. PDFs with ReportLab (escape user text). The
   requester gets an `access_key` to download/email only their quotation. Institution and NIT are
   optional fields (to suggest linking a customer in 4b).
+- **Quotation review (4b):** `QuotationReview` inbound port (`QUOTATION_MANAGE`, Operador denied)
+  under `/api/quotations/` (list with filters, detail, `/modify/`, `/approve/`, `/reject/`,
+  `/customer/`, `/pdf/`). Modify (→ MODIFIED) requires a reason (audited); approve requires a final
+  unit price per item and a dispatch date ≥ today, stores `final_total`/`approved_at`/`approved_by`,
+  restarts the 15-day validity, emails the formal PDF and publishes `QuotationApproved` (no
+  subscribers until step 5); reject requires a reason and emails it. APPROVED/REJECTED are
+  immutable (`QuotationLocked`, 409); the only later change is linking a customer to an approved
+  quotation without one. Customers are reached through the new `customers.CustomerDirectory`
+  inbound port (suggestion when the requester's NIT matches an active customer, with or without
+  check digit). The 360 history uses `quotations.CustomerQuotations` (`QuotationsCommercialHistory`
+  adapter). The two composition roots import each other lazily (inside the functions) to avoid an
+  import cycle. Frontend: `/cotizaciones` tray and `/cotizaciones/:id` review; protected PDFs are
+  downloaded with `downloadFile()` (Bearer token + blob).
 - **AI provider (4c):** OpenRouter (OpenAI-compatible) configured by `LLM_BASE_URL`, `LLM_API_KEY`,
-  `LLM_MODEL` in `.env` (free DeepSeek model for now; switching provider = changing env vars).
-  Never send personal data to the AI; if it fails or there is no key, fall back to statistics and
-  hide the free-text option.
+  `LLM_MODEL` in `.env` (default `google/gemma-4-31b-it:free`: in November 2026 OpenRouter had no
+  free DeepSeek model; `deepseek/deepseek-v4.1-flash` is a cheap paid option). Switching provider
+  or model = changing env vars. Shared kernel port `LanguageModel.complete_json()` + adapter
+  `OpenAICompatibleLanguageModel` (stdlib `urllib`, no extra dependency); tests force
+  `LLM_API_KEY=""` and never call a real provider. It sends its own `User-Agent` (Cloudflare
+  blocks `Python-urllib`, error 1010) and logs the provider's error message, never the key.
+  `LLM_SESSION_HEADER` (optional) sends a new `ses_<random>` id per call for providers that
+  require it. **OpenCode Go** (team subscription, owned by Carlos Cuervo): base URL
+  `https://opencode.ai/inference/go/openai/v1`, model `deepseek-v4.1-flash`,
+  `LLM_SESSION_HEADER=x-opencode-session`; **development and course demo only**: Go is designed
+  for coding agents and the OpenCode Terms limit the services to internal use, not for the benefit
+  of third parties. **Production** must use a pay-as-you-go API instead (OpenCode Zen:
+  `https://opencode.ai/inference/openai/v1`, same model id, no session header; or OpenRouter).
+- **AI features (4c):** (1) **free text → proposal** (US 2.41): `ItemProposer` sends the active
+  catalog + the description with emails / long numbers removed (`strip_personal_data`), keeps only
+  real catalog codes, nothing is added until the requester confirms, the text is not stored;
+  `/api/chatbot/assistant/` says whether the option is on, `/api/chatbot/proposal/` (throttle
+  `public_proposal`, 503 `AI_UNAVAILABLE` when it fails). (2) **AI price estimate**: the chain is
+  `FallbackPriceEstimator([StatisticalPriceEstimator, CachedPriceEstimator(AiPriceEstimator)])`:
+  the product's own history first; the AI only fills gaps, in ONE batch call, using recent approved
+  prices of other products as references. An AI range is discarded unless it cites real reference
+  codes and stays within ×4 of their prices; no references → no call ("Precio por confirmar").
+  Results (including "no estimate") are cached per product in Redis for `AI_PRICE_CACHE_SECONDS`.
+  Each item stores `price_source` (HISTORY / AI), shown to the requester ("Estimado con IA") and
+  in the review. Personal data is never sent to the AI.
 - Patterns required by NFR-05-01: Factory (`Entity.register`), Singleton (`lru_cache`
   composition roots, `event_bus`), Observer (events), Strategy (price estimators, dispatch-date
   estimator).
@@ -133,7 +168,7 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
 | 1 | Skeleton, Docker, Products (template) | Done |
 | 2 | Authentication + user accounts + audit (backend and frontend) | Done |
 | 3 | Customers and commercial notes | Done |
-| 4 | Chatbot (hybrid assistant) + Quotations | **In progress**: 4a public guided assistant done; next 4b (admin review: modify/approve/reject, link customer, `QuotationApproved` event, customer history) and 4c (AI via OpenRouter: free text + AI price strategy) |
+| 4 | Chatbot (hybrid assistant) + Quotations | Done (4a public assistant, 4b admin review, 4c AI: free text + AI price estimate) |
 | 5 | Siigo export queue + Work orders | Pending |
 | 6 | Backups + WhatsApp price history import | Pending |
 
@@ -144,13 +179,15 @@ The first push/PR happens when the user decides (first release with several modu
 - **Sandbox restore adapter** (isolated environment for backup tests, FR-01-09): before step 6.
 - **Siigo Pyme flat-file format** (columns, CSV/TXT): ask the user before implementing the export.
 - **Postman collection** (can be imported from `/api/schema/`): later.
-- **WhatsApp screenshots**: confirm whether the AI provider can read images (else OCR or `.txt`).
+- **WhatsApp screenshots**: confirm whether the AI provider can read images (else OCR or `.txt`);
+  the WhatsApp samples should also feed `PriceHistory.reference_samples` (AI price references).
+- **AI in production**: verified in Docker with OpenCode Go (development only); switch to a
+  pay-as-you-go provider (OpenCode Zen or OpenRouter) before any real deployment.
 - Dashboard, weekly report and audit-log screens: define during development.
 - Production keys `JWT_SIGNING_KEY`, `TOTP_ENCRYPTION_KEY`: required before any real deployment.
 - Frontend bundle > 500 kB: split by route later.
-- **Customer history** (quotations + work orders on the 360 profile) uses the temporary
-  `EmptyCommercialHistory` adapter: replace it with one that calls the quotations / work orders
-  inbound ports in steps 4 and 5.
+- **Customer history** on the 360 profile lists quotations (`QuotationsCommercialHistory`); merge
+  work orders into it in step 5. Step 5 also subscribes to `QuotationApproved` (export queue).
 
 ## Environment notes
 

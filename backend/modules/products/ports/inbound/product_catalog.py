@@ -25,5 +25,9 @@ class ProductCatalog(ABC):
         """Active products whose code or name contains ``text``, ordered by name."""
 
     @abstractmethod
+    def all_selectable(self, limit: int = 500) -> list[CatalogItem]:
+        """Every active product (up to ``limit``), ordered by name: e.g. for the AI assistant."""
+
+    @abstractmethod
     def selectable_by_ids(self, product_ids: list[UUID]) -> dict[UUID, CatalogItem]:
         """Active products among ``product_ids`` (inactive or unknown ids are left out)."""

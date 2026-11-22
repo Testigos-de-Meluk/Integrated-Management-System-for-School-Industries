@@ -36,6 +36,7 @@ class EstimatedItemView:
     unit_price_max: str | None
     subtotal_min: str | None
     subtotal_max: str | None
+    price_source: str | None = None  # "HISTORY" | "AI"; None = "Precio por confirmar"
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,12 +66,41 @@ class PreliminaryQuotationView:
 
 
 @dataclass(frozen=True, slots=True)
+class ProposedItemView:
+    product_id: UUID
+    product_code: str
+    description: str
+    unit_of_measure: str
+    quantity: int
+
+
+@dataclass(frozen=True, slots=True)
+class ItemProposalView:
+    """Products the AI proposes from the free text: nothing is added until confirmed."""
+
+    items: tuple[ProposedItemView, ...]
+    unavailable: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class AssistantOptionsView:
+    free_text_enabled: bool  # False when no AI provider is configured (the option is hidden)
+
+
+@dataclass(frozen=True, slots=True)
 class QuotationDocument:
     filename: str
     content: bytes
 
 
 class QuotationRequests(ABC):
+    @abstractmethod
+    def assistant_options(self) -> AssistantOptionsView: ...
+
+    @abstractmethod
+    def propose_items(self, description: str) -> ItemProposalView:
+        """Free-text needs -> proposed active products (US 2.41). The text is not stored."""
+
     @abstractmethod
     def estimate(self, items: tuple[RequestedItem, ...]) -> EstimateView: ...
 

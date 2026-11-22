@@ -5,7 +5,6 @@ from uuid import uuid4
 
 import pytest
 
-from modules.products.ports.inbound.product_catalog import CatalogItem, ProductCatalog
 from modules.quotations.application.estimators import (
     FallbackPriceEstimator,
     StatisticalPriceEstimator,
@@ -16,71 +15,22 @@ from modules.quotations.ports.inbound.quotation_requests import (
     RequestedItem,
     RequestQuotationCommand,
 )
-from modules.quotations.ports.outbound.ports import (
-    DispatchDateEstimator,
-    PriceEstimator,
-    PriceHistory,
-    QuotationDocumentGenerator,
-    QuotationNumberGenerator,
-    QuotationRepository,
-)
 from modules.shared_kernel.domain.audit import ActorType
 from modules.shared_kernel.domain.exceptions import ValidationError
 from modules.shared_kernel.domain.money import PriceRange
-from modules.shared_kernel.domain.pagination import Page
 
 from ..shared_fakes import SpyAuditLogger, SpyNotifier
-
-CHAIR = CatalogItem(uuid4(), "SIL-001", "Silla escolar", "Unidad")
-DESK = CatalogItem(uuid4(), "MES-002", "Mesa bipersonal", "Unidad")
-
-
-class FakeCatalog(ProductCatalog):
-    def search_selectable(self, text, page_request):
-        return Page([CHAIR, DESK], 2, page_request)
-
-    def selectable_by_ids(self, product_ids):
-        return {p.id: p for p in (CHAIR, DESK) if p.id in product_ids}
-
-
-class MemoryRepository(QuotationRepository):
-    def __init__(self):
-        self.items = {}
-
-    def add(self, quotation):
-        self.items[quotation.id] = quotation
-
-    def get(self, quotation_id):
-        return self.items.get(quotation_id)
-
-
-class Numbers(QuotationNumberGenerator):
-    def __init__(self):
-        self.last = 0
-
-    def next_number(self, year):
-        self.last += 1
-        return f"COT-{year}-{self.last:04d}"
-
-
-class FixedHistory(PriceHistory):
-    def approved_unit_prices(self, product_id, since):
-        return [Decimal(170000), Decimal(190000)] if product_id == CHAIR.id else []
-
-
-class BrokenEstimator(PriceEstimator):
-    def estimate(self, product_id, quantity):
-        raise RuntimeError("AI provider down")
-
-
-class NoDispatch(DispatchDateEstimator):
-    def suggest(self, items, today):
-        return None
-
-
-class FakePdf(QuotationDocumentGenerator):
-    def preliminary_pdf(self, quotation):
-        return b"%PDF-fake " + quotation.number.encode()
+from .fakes import (
+    CHAIR,
+    DESK,
+    BrokenEstimator,
+    FakeCatalog,
+    FakePdf,
+    FixedHistory,
+    MemoryRepository,
+    NoDispatch,
+    Numbers,
+)
 
 
 @pytest.fixture
@@ -122,6 +72,7 @@ def test_estimate_uses_the_fallback_strategy_and_marks_unpriced_items(service):
     chair, desk = estimate.items
     assert (chair.unit_price_min, chair.unit_price_max) == ("170000", "190000")
     assert desk.unit_price_min is None  # "Precio por confirmar"
+    assert (chair.price_source, desk.price_source) == ("HISTORY", None)
     assert (estimate.total_min, estimate.total_max, estimate.unpriced_items) == (
         "6800000",
         "7600000",

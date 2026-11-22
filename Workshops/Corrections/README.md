@@ -110,16 +110,16 @@ They will be defined during development.
 | ID | Status | Change |
 |---|---|---|
 | FR-02-01 … FR-02-04 | Kept | The catalog shows no official price (RN-M2-01). The internal historical price range is only a reference for the estimator and is never shown to customers. |
-| FR-02-05 | **Rewritten** | See below. Also: the assistant asks for an optional institution and NIT, requires the requester's authorization to process personal data (Law 1581 of 2012), and products without price history are shown as **"Precio por confirmar"** (the Administrador sets the price when reviewing). The preliminary quotation is valid for 15 days. |
+| FR-02-05 | **Rewritten** | See below. Also: the assistant asks for an optional institution and NIT, requires the requester's authorization to process personal data (Law 1581 of 2012), and products without price history are shown as **"Precio por confirmar"** (the Administrador sets the price when reviewing). The preliminary quotation is valid for 15 days. **Price estimate order:** the product's own approved prices first (interquartile range); only products without their own history are estimated by the AI, using approved prices of *similar* products as references. The AI never estimates without references, and its ranges are discarded if they do not cite a real reference or fall far from its prices. Each estimated line records its source (history or AI), shown as "Estimado con IA". |
 | FR-02-06 | **Changed** | See below. |
 | FR-02-07, FR-02-08 | Kept | A virtual-assistant requester becomes a customer only when a user with `CUSTOMER_MANAGE` registers them. The profile shows one primary phone and one email (the ones captured at registration). |
 | FR-02-09 | **Changed** | **Identification is validated:** natural person = ID document of 5–15 digits; legal entity = NIT of 9 digits **plus its check digit, verified with the DIAN modulo-11 algorithm** (stored as `900456789-1`). The *commercial contact* is an **optional** field of the form (it is shown in the list and can be filtered). |
 | FR-02-10 | **Changed** | The commercial contact can also be edited. |
 | FR-02-11 | **Changed** | A deactivated customer **can be reactivated** (same as products and accounts), with confirmation and audit. |
-| FR-02-12 | Kept | — |
-| FR-02-13 | **Changed** | Approval requires a **final unit price for every item** and a dispatch date (suggested or manual). The system stores `final_unit_price`, `final_total`, `approved_at` and `approved_by`, and the official PDF uses the final prices. The audit entry records the estimated range and the final price (RN-M2-02). |
+| FR-02-12 | Kept | Implemented as a **separate review tray** (`/cotizaciones`, US 2.25): each row opens the quotation, where it is modified, approved or rejected (the row itself has no action buttons). |
+| FR-02-13 | **Changed** | Approval requires a **final unit price for every item** and a dispatch date (suggested or manual). The system stores `final_unit_price`, `final_total`, `approved_at` and `approved_by`, and the official PDF uses the final prices. The audit entry records the estimated range and the final price (RN-M2-02). Final prices can be entered directly when approving (no prior modification needed). The 15-day validity of the **formal** quotation starts on the approval date. |
 | FR-02-14 | **Changed** | A modified unit price applies only to that quotation and becomes a data point for future estimations (US 2.28.3). |
-| FR-02-15 | Kept | "Rechazada" is final and immutable. |
+| FR-02-15 | Kept | "Rechazada" is final and immutable. Linking a registered customer is optional during review (suggested when the requester's NIT matches an active customer). The only change allowed after approval is linking a customer to an approved quotation that has none (needed by US 2.37). |
 | FR-02-16 | **Changed** | Wording: "commercial orders" → **"approved quotations"**. |
 | FR-02-17 | **Changed** | Lists **approved quotations**. The "customer" filter searches the linked customer or, if there is none, the requester contact. |
 | FR-02-18 | **Changed** | Generating the flat file marks the **quotations** as exported. Downloading the file is the end of the flow inside IMSI. Any later registration in Siigo is manual and out of scope. |
@@ -202,6 +202,7 @@ samples keep no personal data (Law 1581 of 2012).
 | US 2.18 | **Changed** | New criterion 2.18.6: an inactive customer can be reactivated; it becomes available again for new quotations and orders. |
 | US 2.23 | **Changed** | Only the **author** of a note can edit it (other users see it read-only). Deleting remains allowed to any user with permission (US 2.24). |
 | US 2.27 | **Changed** | New criterion 2.27.7: approval is blocked until every item has a final unit price and the quotation has a dispatch date. |
+| US 2.28 | **Changed** | New criterion 2.28.10: saving a modification requires a **reason**, stored in the audit log with the detail of the changes. Commercial terms can also be edited. Products already quoted keep their estimate snapshot even if later deactivated; only newly added products must be active. |
 | US 2.30 … US 2.34 | **Changed** | Every "order" / "commercial order" means **approved quotation**. |
 | US 2.35 | **Changed** | Criterion 2.35.3: the list offers no "register new O.T." action; O.T.s are generated from approved quotations (US 2.37). |
 | US 2.37 | **Rewritten** | *As an Operador, I want to generate a work order from an approved quotation so that the approved job enters production.* Criteria: (1) "Generar O.T." is only enabled for approved quotations without an O.T.; (2) if the quotation has no linked customer, the system requires selecting or registering an active customer first; (3) items and quantities are copied from the quotation; (4) the agreed date defaults to the quotation dispatch date and cannot be in the past; (5) the system assigns a unique consecutive number and the "Pendiente" status; (6) creation is audited; (7) a second O.T. for the same quotation is rejected. |
@@ -259,7 +260,7 @@ of `WORK_ORDER_MANAGE`; it does not grant `QUOTATION_MANAGE`.
 | RN-M1-05 | Kept | Implemented by the new `AUDIT_ENTRY`. |
 | RN-M2-01 | Kept | — |
 | RN-M2-02 | Kept | The final price is stored per item (`final_unit_price`). |
-| RN-M2-03 | **Changed** | Hybrid guided assistant (FR-02-05). Free text is allowed only as an optional description that the AI turns into a proposal the customer must confirm. |
+| RN-M2-03 | **Changed** | Hybrid guided assistant (FR-02-05). Free text is allowed only as an optional description that the AI turns into a proposal the customer must confirm. Emails and phone/document numbers typed in the text are removed before it is sent to the AI provider. The option is hidden when no AI provider is configured. |
 | RN-M2-04 | **Changed** | A rejected quotation stays "Rechazada" (final); it does **not** revert to a preliminary status. |
 | RN-M2-05 | **Changed** | Median only, no buffers for absenteeism or material shortages. |
 | RN-M2-06 | **Changed** | Unique number and sequential cycle kept. Manufacturing specifications, unit values, VAT and advance payments removed. Each O.T. comes from exactly one approved quotation. |
@@ -349,7 +350,7 @@ The corrected model is in [`Updated-Files/Relational_Database_Model.mmd`](Update
 | `BACKUP_FILE` | New `kind` (FULL / DIFFERENTIAL) and self-reference `base_backup_id`. |
 | `RESTORE_PROCESS` | New status `CANCELLED` (user declines final confirmation, US 1.14.3). |
 | `COMMERCIAL_NOTE` | New `updated_by`. |
-| `QUOTATION` | New `quotation_number`, `final_total`, `approved_at`, `approved_by`. |
+| `QUOTATION` | New `quotation_number`, `final_total`, `approved_at`, `approved_by` (plus an `approved_by_name` snapshot). The stored estimated and final totals let the review tray filter by amount (US 2.26.4). |
 | `QUOTATION_ITEM` | New `final_unit_price`. |
 | `WORK_ORDER` | New `quotation_id` (FK, unique, not null) and `actual_dispatch_date`. |
 | `SESSION` | `access_token_id` is not stored (the access token carries the session id). Termination reasons add `PASSWORD_CHANGED` and `TOKEN_REUSE` (replayed refresh token). |

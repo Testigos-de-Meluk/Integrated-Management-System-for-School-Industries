@@ -7,8 +7,9 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from uuid import UUID
 
+from modules.customers.application.customer_directory_service import find_by_any_tax_id_format
 from modules.customers.domain.commercial_note import CommercialNote
-from modules.customers.domain.customer import Customer, CustomerType, customer_class
+from modules.customers.domain.customer import Customer, CustomerType
 from modules.customers.domain.exceptions import CustomerNotFound, DuplicateTaxId, NoteNotFound
 from modules.customers.ports.inbound.customer_use_cases import (
     CustomerFilters,
@@ -98,7 +99,7 @@ class CustomerService(CustomerUseCases):
 
     def get_customer_by_tax_id(self, actor: Actor, tax_id: str) -> CustomerView:
         actor.require(Permission.CUSTOMER_MANAGE)
-        customer = self._find_by_any_tax_id_format(tax_id)
+        customer = find_by_any_tax_id_format(self._customers, tax_id)
         if customer is None:
             raise CustomerNotFound()  # US 2.19.4
         return to_view(customer)
@@ -218,14 +219,6 @@ class CustomerService(CustomerUseCases):
         self._customers.update(customer)
         self._log(AuditAction.STATUS_CHANGED, actor, customer, old=before)
         return to_view(customer)
-
-    def _find_by_any_tax_id_format(self, raw: str) -> Customer | None:
-        """Accepts the id as typed (with dots, without hyphen…) for either customer type."""
-        for customer_type in CustomerType:
-            normalized, _ = customer_class(customer_type).normalize_tax_id(raw)
-            if normalized and (customer := self._customers.get_by_tax_id(normalized)):
-                return customer
-        return None
 
     def _get_or_fail(self, customer_id: UUID) -> Customer:
         customer = self._customers.get_by_id(customer_id)
