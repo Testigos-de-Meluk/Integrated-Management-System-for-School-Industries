@@ -1,5 +1,85 @@
-"""Django ORM models of this module.
+"""Django ORM models of the Quotations module."""
 
-They are persistence details: repositories in ``persistence/`` map them to and from
-domain entities, so they never leave the infrastructure layer.
-"""
+import uuid
+
+from django.db import models
+
+
+class QuotationModel(models.Model):
+    class Status(models.TextChoices):
+        PENDING_REVIEW = "PENDING_REVIEW", "Pendiente de revisión"
+        MODIFIED = "MODIFIED", "Modificada"
+        APPROVED = "APPROVED", "Aprobada"
+        REJECTED = "REJECTED", "Rechazada"
+
+    class DispatchSource(models.TextChoices):
+        SUGGESTED = "SUGGESTED"
+        MANUAL = "MANUAL"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    quotation_number = models.CharField(max_length=20, unique=True)
+    customer_id = models.UUIDField(null=True, blank=True)  # customers module: plain UUID
+    issued_at = models.DateTimeField()
+    requester_full_name = models.CharField(max_length=150)
+    requester_email = models.EmailField(max_length=254)
+    requester_phone = models.CharField(max_length=30)
+    requester_institution = models.CharField(max_length=200, blank=True, default="")
+    requester_tax_id = models.CharField(max_length=20, blank=True, default="")
+    currency = models.CharField(max_length=3, default="COP")
+    commercial_terms = models.TextField(blank=True, default="")
+    valid_until = models.DateField()
+    estimated_dispatch_date = models.DateField(null=True, blank=True)
+    dispatch_date_source = models.CharField(
+        max_length=10, choices=DispatchSource.choices, blank=True, default=""
+    )
+    status = models.CharField(max_length=20, choices=Status.choices)
+    rejection_reason = models.TextField(blank=True, default="")
+    access_key = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "quotation"
+        ordering = ["-issued_at"]
+        indexes = [
+            models.Index(fields=["status", "-issued_at"], name="quotation_status_date_idx"),
+            models.Index(fields=["customer_id"], name="quotation_customer_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return self.quotation_number
+
+
+class QuotationItemModel(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    quotation = models.ForeignKey(QuotationModel, on_delete=models.CASCADE, related_name="items")
+    position = models.PositiveSmallIntegerField(default=0)
+    product_id = models.UUIDField()  # products module: plain UUID, with snapshots below
+    product_code = models.CharField(max_length=30)
+    description = models.CharField(max_length=200)
+    unit_of_measure = models.CharField(max_length=30)
+    quantity = models.PositiveIntegerField()
+    unit_price_min = models.DecimalField(max_digits=14, decimal_places=0, null=True, blank=True)
+    unit_price_max = models.DecimalField(max_digits=14, decimal_places=0, null=True, blank=True)
+    final_unit_price = models.DecimalField(max_digits=14, decimal_places=0, null=True, blank=True)
+
+    class Meta:
+        db_table = "quotation_item"
+        ordering = ["position"]
+        indexes = [models.Index(fields=["product_id"], name="quotation_item_product_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.product_code} x {self.quantity}"
+
+
+class QuotationSequenceModel(models.Model):
+    """Last quotation number issued per year (locked row → no duplicate numbers)."""
+
+    year = models.PositiveSmallIntegerField(primary_key=True)
+    last_number = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = "quotation_sequence"
+
+    def __str__(self) -> str:
+        return f"{self.year}: {self.last_number}"

@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
-import { Navigate, useLocation, useNavigate } from "react-router";
+import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { z } from "zod";
 
 import { ApiError, type SessionPayload } from "@/shared/api/http";
@@ -117,7 +117,12 @@ export function LoginPage() {
             />
           )}
 
-          <p className="mt-8 text-center text-xs text-slate-500">
+          <p className="mt-6 text-center text-sm">
+            <Link to="/cotizar" className="text-red-700 hover:underline">
+              ¿Necesita una cotización? Solicítela aquí, sin crear una cuenta
+            </Link>
+          </p>
+          <p className="mt-4 text-center text-xs text-slate-500">
             Equipo compartido: cierre sesión al terminar. ¿Necesita ayuda? Contacte al administrador
             del sistema.
           </p>

@@ -3,6 +3,7 @@
 from uuid import UUID
 
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 
 from modules.products.domain.exceptions import DuplicateProductCode
 from modules.products.domain.product import Product
@@ -47,6 +48,9 @@ class DjangoProductRepository(ProductRepository):
             queryset = queryset.filter(unit_of_measure__iexact=filters.unit_of_measure.strip())
         if filters.status:
             queryset = queryset.filter(status=filters.status)
+        if filters.text:
+            term = filters.text.strip()
+            queryset = queryset.filter(Q(code__icontains=term) | Q(name__icontains=term))
 
         total = queryset.count()
         start = page_request.offset

@@ -106,8 +106,24 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
 - **Frontend:** `shared/api/http.ts` adds the Bearer token, refreshes once on 401 (single-flight)
   and sends the user to `/login` with the reason. Permissions from `useSession().user`
   (`hasPermission`) only hide UI; the backend enforces them.
+- **Quotations (4a):** public portal `/cotizar` (3 steps, no account) → `/api/chatbot/…` (public,
+  rate-limited per IP with DRF `ScopedRateThrottle`; `NUM_PROXIES` controls the client IP). The
+  `chatbot` module is the public adapter; it calls the `quotations.QuotationRequests` and
+  `products.ProductCatalog` inbound ports. Prices are `PriceRange` (whole COP, `Decimal`); a line
+  without history is `None` = "Precio por confirmar" (user decision). Estimator =
+  `FallbackPriceEstimator([AI (4c), StatisticalPriceEstimator])`, statistical = interquartile range
+  of APPROVED final unit prices in the last 365 days. Dispatch date = `NoHistoryDispatchDateEstimator`
+  until step 5. Quotation numbers `COT-<year>-<0001>` (locked sequence row). Validity 15 days.
+  Data-processing consent (Law 1581) required. PDFs with ReportLab (escape user text). The
+  requester gets an `access_key` to download/email only their quotation. Institution and NIT are
+  optional fields (to suggest linking a customer in 4b).
+- **AI provider (4c):** OpenRouter (OpenAI-compatible) configured by `LLM_BASE_URL`, `LLM_API_KEY`,
+  `LLM_MODEL` in `.env` (free DeepSeek model for now; switching provider = changing env vars).
+  Never send personal data to the AI; if it fails or there is no key, fall back to statistics and
+  hide the free-text option.
 - Patterns required by NFR-05-01: Factory (`Entity.register`), Singleton (`lru_cache`
-  composition roots, `event_bus`), Observer (events), Strategy (pending: price/dispatch estimators).
+  composition roots, `event_bus`), Observer (events), Strategy (price estimators, dispatch-date
+  estimator).
 
 ## Roadmap (implementation order chosen by the user: option D)
 
@@ -117,7 +133,7 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
 | 1 | Skeleton, Docker, Products (template) | Done |
 | 2 | Authentication + user accounts + audit (backend and frontend) | Done |
 | 3 | Customers and commercial notes | Done |
-| 4 | Chatbot (hybrid assistant) + Quotations | **Next** |
+| 4 | Chatbot (hybrid assistant) + Quotations | **In progress**: 4a public guided assistant done; next 4b (admin review: modify/approve/reject, link customer, `QuotationApproved` event, customer history) and 4c (AI via OpenRouter: free text + AI price strategy) |
 | 5 | Siigo export queue + Work orders | Pending |
 | 6 | Backups + WhatsApp price history import | Pending |
 

@@ -9,6 +9,7 @@ from .base import *  # noqa: E402, F403
 DEBUG = False
 BCRYPT_ROUNDS = 4  # fast hashing in tests only (real environments use 12)
 REFRESH_COOKIE_SECURE = False
+CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True

@@ -6,12 +6,15 @@ import { LoginPage } from "@/features/auth/LoginPage";
 import { CustomerProfilePage } from "@/features/customers/CustomerProfilePage";
 import { CustomersPage } from "@/features/customers/CustomersPage";
 import { ProductsPage } from "@/features/products/ProductsPage";
+import { QuoteRequestPage } from "@/features/quote-request/QuoteRequestPage";
 import { UsersPage } from "@/features/users/UsersPage";
 import { HomePage } from "@/pages/HomePage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
+  // Public portal for potential customers (no account).
+  { path: "/cotizar", element: <QuoteRequestPage /> },
   {
     element: (
       <RequireAuth>

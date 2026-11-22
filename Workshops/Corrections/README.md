@@ -110,7 +110,7 @@ They will be defined during development.
 | ID | Status | Change |
 |---|---|---|
 | FR-02-01 … FR-02-04 | Kept | The catalog shows no official price (RN-M2-01). The internal historical price range is only a reference for the estimator and is never shown to customers. |
-| FR-02-05 | **Rewritten** | See below. |
+| FR-02-05 | **Rewritten** | See below. Also: the assistant asks for an optional institution and NIT, requires the requester's authorization to process personal data (Law 1581 of 2012), and products without price history are shown as **"Precio por confirmar"** (the Administrador sets the price when reviewing). The preliminary quotation is valid for 15 days. |
 | FR-02-06 | **Changed** | See below. |
 | FR-02-07, FR-02-08 | Kept | A virtual-assistant requester becomes a customer only when a user with `CUSTOMER_MANAGE` registers them. The profile shows one primary phone and one email (the ones captured at registration). |
 | FR-02-09 | **Changed** | **Identification is validated:** natural person = ID document of 5–15 digits; legal entity = NIT of 9 digits **plus its check digit, verified with the DIAN modulo-11 algorithm** (stored as `900456789-1`). The *commercial contact* is an **optional** field of the form (it is shown in the list and can be filtered). |

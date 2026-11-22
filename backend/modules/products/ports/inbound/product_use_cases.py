@@ -46,6 +46,8 @@ class ProductFilters:
     code: str | None = None
     name: str | None = None
     unit_of_measure: str | None = None
+    #: Free search over code OR name (used by the public catalog).
+    text: str | None = None
     status: str | None = None
 
 

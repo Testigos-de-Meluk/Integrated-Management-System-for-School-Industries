@@ -1,3 +1,5 @@
+import base64
+
 from django.db import transaction
 
 from modules.shared_kernel.domain.notifications import EmailMessage
@@ -17,7 +19,11 @@ class CeleryEmailNotifier(Notifier):
 
         # robust=True: if the broker is down, the failure is logged instead of turning an already
         # committed operation (e.g. a created account) into an error response.
+        attachments = [
+            [a.filename, base64.b64encode(a.content).decode("ascii"), a.mimetype]
+            for a in message.attachments
+        ]
         transaction.on_commit(
-            lambda: send_email.delay(list(message.to), message.subject, message.body),
+            lambda: send_email.delay(list(message.to), message.subject, message.body, attachments),
             robust=True,
         )

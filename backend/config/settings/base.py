@@ -123,6 +123,17 @@ REST_FRAMEWORK = {
     # OpenAPI 3 schema generated from views and serializers (drf-spectacular).
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     # Single error format: {"detail": "...", "errors": {"field": ["..."]}}.
+    # Public endpoints (virtual assistant) are rate-limited per IP address.
+    "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
+    "DEFAULT_THROTTLE_RATES": {
+        "public_catalog": env("THROTTLE_PUBLIC_CATALOG", "120/min"),
+        "public_estimate": env("THROTTLE_PUBLIC_ESTIMATE", "60/min"),
+        "public_quotation": env("THROTTLE_PUBLIC_QUOTATION", "10/hour"),
+        "public_document": env("THROTTLE_PUBLIC_DOCUMENT", "60/hour"),
+    },
+    # Number of reverse proxies in front of Django: the client IP is taken from X-Forwarded-For
+    # only behind them (0 = use the direct connection address, never a header the client sets).
+    "NUM_PROXIES": int(env("NUM_PROXIES", "0")),
     "EXCEPTION_HANDLER": (
         "modules.shared_kernel.infrastructure.api.exceptions.api_exception_handler"
     ),
@@ -149,6 +160,20 @@ SPECTACULAR_SETTINGS = {
         "RoleEnum": "modules.user_accounts.ports.inbound.user_account_use_cases.ROLES",
     },
 }
+
+# --- Cache (rate limits) --------------------------------------------------------------------------
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": env("REDIS_URL", "redis://redis:6379/0"),
+    }
+}
+
+# --- Quotations -----------------------------------------------------------------------------------
+
+QUOTATION_VALIDITY_DAYS = int(env("QUOTATION_VALIDITY_DAYS", "15"))
+PRICE_LOOKBACK_DAYS = int(env("PRICE_LOOKBACK_DAYS", "365"))
 
 # --- Redis / Celery ---------------------------------------------------------------------------
 
