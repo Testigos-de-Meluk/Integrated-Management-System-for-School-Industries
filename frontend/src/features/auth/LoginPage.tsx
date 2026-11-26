@@ -297,7 +297,7 @@ function EnrollStep({
       setCode("");
       if (
         error instanceof ApiError &&
-        (error.code === "PRE_AUTH_EXPIRED" || error.code === "ENROLLMENT_EXPIRED")
+        ["ACCOUNT_LOCKED", "PRE_AUTH_EXPIRED", "ENROLLMENT_EXPIRED"].includes(error.code ?? "")
       ) {
         onRestart(error.message);
       } else {

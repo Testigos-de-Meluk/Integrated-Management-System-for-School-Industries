@@ -16,6 +16,7 @@ from modules.authentication.domain.exceptions import (
     InvalidCredentials,
     InvalidVerificationCode,
     PreAuthExpired,
+    RefreshConflict,
     SessionEnded,
     SessionExpired,
     SessionReplaced,
@@ -108,6 +109,9 @@ class AuthService(AuthUseCases):
     def start_enrollment(self, pre_auth_token: str) -> EnrollmentView:
         now = self._now()
         account = self._account_from_pre_auth(pre_auth_token, PreAuthPurpose.ENROLL_AUTHENTICATOR)
+        locked_until = self._accounts.is_locked(account.id)
+        if locked_until is not None:  # FR-01-14: a pre-auth token issued before the lock is no key
+            raise AccountLocked(locked_until, now)
         secret = self._two_factor.new_secret()
         enrollment = self._enrollments.get_for_user(account.id)
         if enrollment is None:
@@ -127,6 +131,11 @@ class AuthService(AuthUseCases):
     ) -> Outcome[SessionTokens]:
         now = self._now()
         account = self._account_from_pre_auth(pre_auth_token, PreAuthPurpose.ENROLL_AUTHENTICATOR)
+        # FR-01-14 / US 1.22.2: while locked, not even the right code opens a session (the same
+        # check as ``verify_code``); otherwise the lock would be recorded but never enforced.
+        locked_until = self._accounts.is_locked(account.id)
+        if locked_until is not None:
+            return Outcome.fail(AccountLocked(locked_until, now))
         enrollment = self._enrollments.get_for_user(account.id)
         if enrollment is None:
             raise EnrollmentNotStarted()
@@ -222,8 +231,10 @@ class AuthService(AuthUseCases):
         session.rotate_refresh_token(secrets.token_urlsafe(24))
         # The conditional update makes the rotation atomic: if another tab already rotated, the
         # session is left untouched and only this request fails (no shared session to kill).
+        # RefreshConflict (not SessionEnded) so the view keeps the cookie: it is shared by every
+        # tab and the winner's new one must not be erased.
         if not self._sessions.update(session, expected_refresh_token_id=previous_token_id):
-            return Outcome.fail(SessionEnded())
+            return Outcome.fail(RefreshConflict())
         return Outcome.ok(self._issue_tokens(account, session, now))
 
     def authenticate(self, access_token: str, source_ip: str | None) -> Actor:

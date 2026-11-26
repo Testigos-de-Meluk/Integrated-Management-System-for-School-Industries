@@ -70,3 +70,11 @@ class SessionExpired(AuthenticationError):
 class SessionEnded(AuthenticationError):
     default_message = "Su sesión ha finalizado. Inicie sesión de nuevo."
     code = "SESSION_ENDED"
+
+
+class RefreshConflict(ConflictError):
+    """Another tab renewed the session at the same moment. The session is still open and the
+    browser already holds (or is about to receive) the new cookie, so the client just retries."""
+
+    default_message = "La sesión se renovó en otra pestaña. Intente de nuevo."
+    code = "REFRESH_CONFLICT"

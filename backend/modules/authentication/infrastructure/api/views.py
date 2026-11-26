@@ -30,6 +30,7 @@ from .serializers import (
 TAG = ["auth"]
 REFRESH_COOKIE = "imsi_refresh"
 COOKIE_PATH = "/api/auth/"
+REFRESH_CONFLICT = "REFRESH_CONFLICT"  # error code of a lost refresh race (409)
 ERROR = OpenApiResponse(description='{"detail", "errors", "code"}')
 
 
@@ -136,10 +137,14 @@ class RefreshView(PublicAuthView):
         tags=TAG,
         summary="New access token using the refresh cookie (does not count as activity)",
         request=None,
-        responses={200: SessionSerializer, 401: ERROR},
+        responses={200: SessionSerializer, 401: ERROR, 409: ERROR},
     )
     def post(self, request: Request) -> Response:
         outcome = auth_use_cases().refresh(request.COOKIES.get(REFRESH_COOKIE, ""))
+        if outcome.error and outcome.error.code == REFRESH_CONFLICT:
+            # Another tab won the rotation: the cookie is shared by every tab, so erasing it here
+            # would also log out the winner. The session is still open; the client retries.
+            return error_response(outcome.error)
         if outcome.error:
             return _clear_cookie(error_response(outcome.error))
         return _session_response(outcome.value)

@@ -84,8 +84,15 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
 - **Transactions:** one per request (`ATOMIC_REQUESTS`). Failures that must be persisted (failed
   logins, lockout counter, their audit) are **returned as `Outcome` errors**, not raised, and the
   view uses `error_response()`; raising would roll them back.
-- **Audit:** `DatabaseAuditLogger` writes to `audit_entry`, insert-only (PostgreSQL trigger).
-  Never include passwords/hashes. `actor_type` USER / SYSTEM / ANONYMOUS.
+- **Audit:** `DatabaseAuditLogger` writes to `audit_entry`, insert-only: PostgreSQL triggers
+  reject UPDATE / DELETE (row, `0002`) and TRUNCATE (statement, `0004`), so `manage.py flush` and
+  `transaction=True` tests cannot work (use the default transactional rollback tests). The
+  triggers do not stop the table owner (see pending items). Never include passwords/hashes.
+  `actor_type` USER / SYSTEM / ANONYMOUS: a failed login on an **existing** account records that
+  account as actor (USER = "the account involved", not proof that its owner acted); only an
+  unknown email is ANONYMOUS (as in the corrections README).
+- **Text rules:** names use `shared_kernel.domain.text.clean_text` (collapses spaces, collects
+  errors); free text with line breaks (terms, reasons) uses quotations' `clean_multiline_text`.
 - **Events (Observer):** `shared_kernel` in-process `event_bus`; subscribe in `AppConfig.ready()`.
 - **Emails:** `Notifier` port → Celery after commit (`on_commit(robust=True)`); Mailpit in dev.
 - **Roles:** fixed (SUPERADMIN, ADMIN, OPERATOR); matrix in `shared_kernel/domain/security.py`;
@@ -95,9 +102,14 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
 - **Authentication:** PyJWT behind `TokenIssuer` (not SimpleJWT). Login = password → pre-auth token
   → TOTP enrollment (QR, 5 min) or 6-digit verification. Access token 5 min (kept in browser
   memory), refresh token in an httpOnly SameSite=Strict cookie on `/api/auth/`, rotated on use
-  (reuse closes the session). Every request checks the `session` row: single session, 15-minute
-  inactivity, deactivated account; the role is read from the account on each request. Lockout:
-  3 failures (password or code) → 15 minutes. TOTP secrets encrypted with Fernet.
+  (reuse closes the session). The rotation is a conditional UPDATE: a tab that loses a race gets
+  409 `REFRESH_CONFLICT`, the cookie is **not** cleared (it is shared by all tabs) and the client
+  retries once; tabs also serialize refreshes with the Web Locks API. Every request checks the
+  `session` row: single session, 15-minute inactivity, deactivated account; the role is read from
+  the account on each request. Lockout: 3 failures (password, verification code or enrollment
+  code) → 15 minutes, enforced in every step (login, enrollment start/confirm, verify): while
+  locked even the right code is refused. The pre-auth token is a stateless JWT (several attempts
+  allowed until it expires). TOTP secrets encrypted with Fernet.
 - **State transitions** are `POST` actions (`/activate/`, `/deactivate/`, later `/approve/`…).
 - **Customers:** abstract `Customer` with `NaturalPerson` / `LegalEntity` (factory
   `Customer.register`). NIT validated with the DIAN check digit; natural ID 5–15 digits; tax id and
@@ -117,7 +129,9 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
   final unit prices in the last 365 days. Dispatch date = `NoHistoryDispatchDateEstimator`
   until step 5. Quotation numbers `COT-<year>-<0001>` (locked sequence row). Validity 15 days.
   Data-processing consent (Law 1581) required. PDFs with ReportLab (escape user text). The
-  requester gets an `access_key` to download/email only their quotation. Institution and NIT are
+  requester gets an `access_key` to download/email only their quotation: it always travels in the
+  request body (PDF and email are `POST`), never in the URL (logs, history), and is compared as
+  bytes with `compare_digest` (any key → same 404). Institution and NIT are
   optional fields (to suggest linking a customer in 4b).
 - **Quotation review (4b):** `QuotationReview` inbound port (`QUOTATION_MANAGE`, Operador denied)
   under `/api/quotations/` (list with filters, detail, `/modify/`, `/approve/`, `/reject/`,
@@ -187,6 +201,13 @@ The first push/PR happens when the user decides (first release with several modu
   pay-as-you-go provider (OpenCode Zen or OpenRouter) before any real deployment.
 - Dashboard, weekly report and audit-log screens: define during development.
 - Production keys `JWT_SIGNING_KEY`, `TOTP_ENCRYPTION_KEY`: required before any real deployment.
+- **Database roles (before any real deployment):** today Django connects as `imsi`, owner and
+  superuser, who can disable the audit triggers. Split into an owner role used only by `migrate`
+  and an application role (backend, worker, beat) that does not own the tables and has only
+  `SELECT, INSERT` on `audit_entry` (no UPDATE / DELETE / TRUNCATE / ALTER). Migration `0003`
+  (`REVOKE … FROM PUBLIC`) is harmless but does not provide this.
+- Audit-log screen: a `LOGIN_FAILED` / `ACCOUNT_LOCKED` row with a USER actor means "this account
+  was targeted", not that its owner acted; make that clear in the UI.
 - Frontend bundle > 500 kB: split by route later.
 - **Customer history** on the 360 profile lists quotations (`QuotationsCommercialHistory`); merge
   work orders into it in step 5. Step 5 also subscribes to `QuotationApproved` (export queue).

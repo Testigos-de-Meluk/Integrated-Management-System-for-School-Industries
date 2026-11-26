@@ -19,7 +19,7 @@ from modules.quotations.domain.quotation import (
     Quotation,
     QuotationItem,
     QuotationStatus,
-    clean_text,
+    clean_multiline_text,
     validate_quantity,
 )
 from modules.quotations.ports.inbound.customer_quotations import (
@@ -365,7 +365,7 @@ class QuotationReviewService(QuotationReview):
 
     @staticmethod
     def _required_reason(reason: str | None, message: str) -> str:
-        text = clean_text(reason, "reason", REASON_MAX_LENGTH)
+        text = clean_multiline_text(reason, "reason", REASON_MAX_LENGTH)
         if not text:
             raise ValidationError.for_field("reason", message)
         return text

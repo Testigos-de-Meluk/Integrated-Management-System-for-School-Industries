@@ -73,6 +73,32 @@ def test_three_wrong_enrollment_codes_lock_the_account(create_account):
     assert AuditEntryModel.objects.filter(action="ACCOUNT_LOCKED").exists()
 
 
+def test_a_locked_account_cannot_finish_or_restart_the_enrollment(create_account):
+    """US 1.22.2: during the lock, even the right code is refused, and the lock stays in place."""
+    create_account()
+    client = APIClient()
+    token = login(client).json()["pre_auth_token"]
+    secret = client.post("/api/auth/enrollment/", {"pre_auth_token": token}, "json").json()[
+        "secret"
+    ]
+    for _ in range(3):
+        client.post(
+            "/api/auth/enrollment/confirm/", {"pre_auth_token": token, "code": "000000"}, "json"
+        )
+
+    right_code = client.post(
+        "/api/auth/enrollment/confirm/",
+        {"pre_auth_token": token, "code": totp_code(secret)},
+        "json",
+    )
+    new_qr = client.post("/api/auth/enrollment/", {"pre_auth_token": token}, "json")
+
+    assert right_code.status_code == 401 and right_code.json()["code"] == "ACCOUNT_LOCKED"
+    assert new_qr.status_code == 401 and new_qr.json()["code"] == "ACCOUNT_LOCKED"
+    assert not SessionModel.objects.exists()
+    assert login(APIClient()).json()["code"] == "ACCOUNT_LOCKED"  # the lock was not reset
+
+
 def test_confirmed_login_returns_access_token_and_httponly_refresh_cookie(create_account):
     create_account()
     client = APIClient()
@@ -235,6 +261,25 @@ def test_a_lost_refresh_race_does_not_kill_the_session(create_account):
     assert repository.update(second, expected_refresh_token_id=previous) is False
     stored = repository.get(model.id)
     assert stored.refresh_token_id == "winner" and stored.status is SessionStatus.ACTIVE
+
+
+def test_the_loser_of_a_refresh_race_keeps_the_shared_cookie(create_account, monkeypatch):
+    """The cookie belongs to the browser, not to the tab: the loser must not erase it."""
+    create_account()
+    client = APIClient()
+    enroll_and_login(client, EMAIL)
+    original_update = DjangoSessionRepository.update
+
+    def other_tab_rotates_first(self, session, **kwargs):
+        SessionModel.objects.update(refresh_token_id="rotated-by-the-other-tab")
+        return original_update(self, session, **kwargs)
+
+    monkeypatch.setattr(DjangoSessionRepository, "update", other_tab_rotates_first)
+    response = client.post("/api/auth/refresh/")
+
+    assert response.status_code == 409 and response.json()["code"] == "REFRESH_CONFLICT"
+    assert "imsi_refresh" not in response.cookies  # no Set-Cookie that would delete it
+    assert SessionModel.objects.get().status == "ACTIVE"
 
 
 def test_logout_closes_the_session(create_account):

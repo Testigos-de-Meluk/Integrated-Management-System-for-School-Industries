@@ -129,7 +129,9 @@ def validate_final_price(value: Decimal | None) -> Decimal | None:
     return price
 
 
-def clean_text(value: str | None, field_name: str, max_length: int) -> str:
+def clean_multiline_text(value: str | None, field_name: str, max_length: int) -> str:
+    """Free text such as commercial terms or a reason: unlike ``shared_kernel.domain.text.
+    clean_text`` (names), it keeps line breaks and inner spacing, and raises at once."""
     text = (value or "").strip()
     if len(text) > max_length:
         raise ValidationError.for_field(field_name, f"Máximo {max_length} caracteres.")
@@ -244,7 +246,7 @@ class Quotation:
         for item in items:
             validate_quantity(item.quantity)
             item.final_unit_price = validate_final_price(item.final_unit_price)
-        terms = clean_text(commercial_terms, "commercial_terms", TERMS_MAX_LENGTH)
+        terms = clean_multiline_text(commercial_terms, "commercial_terms", TERMS_MAX_LENGTH)
         self._set_dispatch_date(dispatch_date, today)
         self.items = items
         self.commercial_terms = terms
@@ -268,7 +270,7 @@ class Quotation:
         if set(final_prices) - {item.id for item in self.items}:
             raise InvalidQuotationItems("Uno o más productos no pertenecen a esta cotización.")
         prices = {item_id: validate_final_price(price) for item_id, price in final_prices.items()}
-        terms = clean_text(commercial_terms, "commercial_terms", TERMS_MAX_LENGTH)
+        terms = clean_multiline_text(commercial_terms, "commercial_terms", TERMS_MAX_LENGTH)
 
         errors: dict[str, list[str]] = {}
         if any(prices.get(i.id, i.final_unit_price) is None for i in self.items):
@@ -293,7 +295,7 @@ class Quotation:
     def reject(self, reason: str | None) -> None:
         """Final state (FR-02-15, RN-M2-04): it never returns to a preliminary status."""
         self.ensure_editable()
-        text = clean_text(reason, "reason", REASON_MAX_LENGTH)
+        text = clean_multiline_text(reason, "reason", REASON_MAX_LENGTH)
         if not text:
             raise ValidationError.for_field("reason", "Indique el motivo del rechazo.")
         self.status = QuotationStatus.REJECTED

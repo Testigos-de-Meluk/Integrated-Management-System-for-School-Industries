@@ -28,3 +28,11 @@ def test_update_is_rejected(entry):
 def test_delete_is_rejected(entry):
     with pytest.raises(DatabaseError), transaction.atomic():
         AuditEntryModel.objects.filter(pk=entry.pk).delete()
+
+
+def test_truncate_is_rejected(entry):
+    """Row triggers do not fire on TRUNCATE: migration 0004 adds a statement-level one."""
+    with pytest.raises(DatabaseError, match="TRUNCATE is not allowed"), transaction.atomic():
+        with connection.cursor() as cursor:
+            cursor.execute("TRUNCATE audit_entry")
+    assert AuditEntryModel.objects.filter(pk=entry.pk).exists()

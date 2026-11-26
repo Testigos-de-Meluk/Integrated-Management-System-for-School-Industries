@@ -65,21 +65,42 @@ export type SessionPayload = {
 
 let refreshInFlight: Promise<boolean> | null = null;
 
+const REFRESH_LOCK = "imsi-session-refresh";
+const CONFLICT_RETRY_DELAY_MS = 500;
+
+/**
+ * Runs ``task`` while holding a lock shared by every tab of this site (Web Locks API), so two
+ * tabs never rotate the shared refresh cookie at the same time. Browsers without it just run it.
+ */
+async function withCrossTabLock<T>(task: () => Promise<T>): Promise<T> {
+  if (typeof navigator === "undefined" || !navigator.locks) return task();
+  return (await navigator.locks.request(REFRESH_LOCK, task)) as T;
+}
+
+function postRefresh(): Promise<Response> {
+  return fetch("/api/auth/refresh/", { method: "POST", headers: { Accept: "application/json" } });
+}
+
 /**
  * Asks for a new access token using the httpOnly refresh cookie. Concurrent callers share one
  * request: the refresh token rotates on every use, so two parallel refreshes would look like a
- * stolen token to the backend and close the session.
+ * stolen token to the backend and close the session. Across tabs, the Web Locks API serializes
+ * them; if a race still happens the backend answers 409 ``REFRESH_CONFLICT`` without touching the
+ * cookie, and this retries once, by then with the cookie the other tab received.
  */
 export function refreshSession(): Promise<boolean> {
   if (!refreshInFlight) {
-    refreshInFlight = (async () => {
+    refreshInFlight = withCrossTabLock(async () => {
       const wasAuthenticated = getSessionState().status === "authenticated";
       try {
-        const response = await fetch("/api/auth/refresh/", {
-          method: "POST",
-          headers: { Accept: "application/json" },
-        });
-        const body: unknown = await response.json().catch(() => null);
+        let response = await postRefresh();
+        let body: unknown = await response.json().catch(() => null);
+        const conflict = (body as Partial<ApiErrorBody> | null)?.code === "REFRESH_CONFLICT";
+        if (response.status === 409 && conflict) {
+          await new Promise((resolve) => setTimeout(resolve, CONFLICT_RETRY_DELAY_MS));
+          response = await postRefresh();
+          body = await response.json().catch(() => null);
+        }
         if (response.ok) {
           const session = body as SessionPayload;
           startSession(session.access_token, session.user);
@@ -92,7 +113,7 @@ export function refreshSession(): Promise<boolean> {
         endSession(wasAuthenticated ? "No fue posible conectar con el servidor." : null);
         return false;
       }
-    })().finally(() => {
+    }).finally(() => {
       refreshInFlight = null;
     });
   }
