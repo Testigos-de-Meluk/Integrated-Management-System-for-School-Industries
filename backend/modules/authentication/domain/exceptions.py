@@ -23,7 +23,9 @@ class AccountLocked(AuthenticationError):
     def __init__(self, locked_until: datetime | None, now: datetime) -> None:
         minutes = 15
         if locked_until is not None:
-            minutes = max(1, ceil((locked_until - now).total_seconds() / 60))
+            # Capped at the lock duration: ``now`` is read a few ms before the lock is set, which
+            # made the attempt that locks the account say "16 minutos".
+            minutes = min(15, max(1, ceil((locked_until - now).total_seconds() / 60)))
         super().__init__(
             "Cuenta bloqueada temporalmente por intentos fallidos. "
             f"Intente de nuevo en {minutes} minuto{'s' if minutes != 1 else ''}."

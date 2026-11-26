@@ -17,6 +17,7 @@ from modules.user_accounts.application.user_account_service import UserAccountSe
 from modules.user_accounts.ports.inbound.account_access import AccountAccess
 from modules.user_accounts.ports.inbound.user_account_use_cases import UserAccountUseCases
 
+from .persistence.cache_unknown_email_attempts import CacheUnknownEmailAttemptStore
 from .persistence.django_user_repository import DjangoUserRepository
 
 
@@ -28,7 +29,9 @@ def password_hasher() -> BcryptPasswordHasher:
 @lru_cache(maxsize=1)
 def account_access() -> AccountAccess:
     """Port offered to other modules (the authentication module) for login checks."""
-    return AccountAccessService(DjangoUserRepository(), password_hasher())
+    return AccountAccessService(
+        DjangoUserRepository(), password_hasher(), CacheUnknownEmailAttemptStore()
+    )
 
 
 @lru_cache(maxsize=1)

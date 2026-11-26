@@ -123,7 +123,7 @@ REST_FRAMEWORK = {
     # OpenAPI 3 schema generated from views and serializers (drf-spectacular).
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     # Single error format: {"detail": "...", "errors": {"field": ["..."]}}.
-    # Public endpoints (virtual assistant) are rate-limited per IP address.
+    # Public endpoints (virtual assistant) and the login steps are rate-limited per IP address.
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
     "DEFAULT_THROTTLE_RATES": {
         "public_catalog": env("THROTTLE_PUBLIC_CATALOG", "120/min"),
@@ -131,6 +131,12 @@ REST_FRAMEWORK = {
         "public_quotation": env("THROTTLE_PUBLIC_QUOTATION", "10/hour"),
         "public_document": env("THROTTLE_PUBLIC_DOCUMENT", "60/hour"),
         "public_proposal": env("THROTTLE_PUBLIC_PROPOSAL", "20/hour"),
+        # Security audit F-04: the account lockout stops guessing one account, these stop one
+        # address from trying many accounts (or locking them all). The office shares one public
+        # IP, so the limits leave room for several employees logging in at once.
+        "auth_login": env("THROTTLE_AUTH_LOGIN", "10/min"),
+        "auth_code": env("THROTTLE_AUTH_CODE", "20/min"),
+        "auth_refresh": env("THROTTLE_AUTH_REFRESH", "60/min"),
     },
     # Number of reverse proxies in front of Django: the client IP is taken from X-Forwarded-For
     # only behind them (0 = use the direct connection address, never a header the client sets).

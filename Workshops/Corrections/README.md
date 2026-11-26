@@ -100,10 +100,10 @@ They will be defined during development.
 | FR-01-02 | Kept | — |
 | FR-01-03 | **Changed** | An incorrect TOTP code counts as a failed attempt for FR-01-14. |
 | FR-01-04 | **Changed** | Permission set updated (see [4.4](#44-permissions)). Superadministrador and Administrador hold the same permissions in the current scope. |
-| FR-01-05, FR-01-06 | Kept | Implemented through the `Session` entity and the `SessionRepository` port (see [5.3](#53-architecture-diagram)). |
+| FR-01-05, FR-01-06 | Kept | Implemented through the `Session` entity and the `SessionRepository` port (see [5.3](#53-architecture-diagram)). **Closing is final:** every session write is conditional on the session still being active, so a request that was already in progress (activity, token renewal) can never reopen a session closed by a logout or by a new login on another device (security audit 2026-11-26, F-01/F-02). |
 | FR-01-07 | **Changed** | Retention clarified: **7 daily, 4 weekly (one per week of the last month), 12 monthly**. The first backup is **full**; each following backup is **differential** (stores only what changed since its full base). Purging must never delete a full backup that a retained differential depends on. |
 | FR-01-08 … FR-01-13 | Kept | Accessible to Administrador and Superadministrador, as written. |
-| **FR-01-14** | **New** | **Temporary account lockout.** After **3 consecutive failed authentication attempts** (wrong password or wrong TOTP code) the system locks the account for **15 minutes**, records `ACCOUNT_LOCKED` in the audit log and shows the message of FR-01-01. A successful login resets the counter. An Administrador or Superadministrador can unlock the account manually from user management. |
+| **FR-01-14** | **New** | **Temporary account lockout.** After **3 consecutive failed authentication attempts** (wrong password or wrong TOTP code) the system locks the account for **15 minutes**, records `ACCOUNT_LOCKED` in the audit log and shows the message of FR-01-01. A successful login resets the counter. An Administrador or Superadministrador can unlock the account manually from user management. **Implementation notes (security audit 2026-11-26):** the lock is enforced at every step, including linking the authenticator; an email with **no account** gets exactly the same answers at the same attempts, so the lockout message does not reveal which emails are registered (F-03a); every login step is also **rate-limited per IP address** (F-04), with the message "Demasiados intentos desde esta conexión. Intente de nuevo en N segundos.". **Accepted trade-off (F-03b):** because the lock is checked before the password, anyone who knows an email can lock that account for 15 minutes; it is the cost of this requirement, mitigated by the per-IP limit and the manual unlock (US 1.23). |
 
 #### Module 2 — Commercial Management and Virtual Assistant
 
@@ -184,7 +184,7 @@ samples keep no personal data (Law 1581 of 2012).
 | NFR-05-02 | Kept | — |
 | NFR-06-01, NFR-06-02 | Kept | — |
 | NFR-07-01, NFR-07-02 | Kept | — |
-| NFR-08-01 | **Changed** | Implemented by the redesigned `AUDIT_ENTRY` (see [5.5](#55-relational-database-model)). Insert-only is enforced by revoking `UPDATE`/`DELETE` on the table for the application role **and** by a trigger that rejects both operations. |
+| NFR-08-01 | **Changed** | Implemented by the redesigned `AUDIT_ENTRY` (see [5.5](#55-relational-database-model)). Insert-only is enforced by triggers that reject `UPDATE`, `DELETE` and `TRUNCATE` (implemented), **and**, before any real deployment, by connecting the application with a role that does not own the table and has only `SELECT`/`INSERT` on it (pending: today the development role owns the table and could disable the triggers). |
 | NFR-08-02 | **Changed** | Also applies to WhatsApp imports (original file deleted, no personal data kept in samples). |
 
 ### 4.3 User stories
@@ -447,3 +447,4 @@ Hosting is not a requirement this semester.
 | 4 | Dashboard, weekly report and audit log screens. | During development |
 | 5 | Confirm whether the AI provider can read screenshots for WhatsApp import; if not, use OCR before extraction or accept `.txt` only. | Before implementing FR-02-24 |
 | 6 | Postman collection for the API (can be imported from the OpenAPI schema at `/api/schema/`). | Later |
+| 7 | Production configuration: a settings module that refuses to start without `JWT_SIGNING_KEY` / `TOTP_ENCRYPTION_KEY`, with `DEBUG` off, the refresh cookie `Secure` and `/api/docs/` hidden; and the non-owner database role of NFR-08-01 (security audit 2026-11-26, N-01…N-03). | Before any real deployment |

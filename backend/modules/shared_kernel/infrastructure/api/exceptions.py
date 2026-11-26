@@ -4,7 +4,10 @@ Every error response has the shape ``{"detail": "<message>", "errors": {"<field>
 so the frontend can show a general message and mark the fields to correct (NFR-03-02).
 """
 
+from math import ceil
+
 from rest_framework import status
+from rest_framework.exceptions import Throttled
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 from rest_framework.views import exception_handler as drf_exception_handler
@@ -56,6 +59,14 @@ def api_exception_handler(exc, context):
         data = response.data
         errors = data if isinstance(data, dict) else {"non_field_errors": data}
         response.data = {"detail": ValidationError.default_message, "errors": errors}
+    elif isinstance(exc, Throttled):
+        # DRF's own text ("Solicitud fue regulada (throttled)…") is not meant for end users.
+        wait = f" en {ceil(exc.wait)} segundos" if exc.wait else " más tarde"
+        response.data = {
+            "detail": f"Demasiados intentos desde esta conexión. Intente de nuevo{wait}.",
+            "errors": {},
+            "code": "RATE_LIMITED",
+        }
     elif isinstance(response.data, dict) and "detail" in response.data:
         response.data = {"detail": str(response.data["detail"]), "errors": {}}
     return response

@@ -102,14 +102,37 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
 - **Authentication:** PyJWT behind `TokenIssuer` (not SimpleJWT). Login = password → pre-auth token
   → TOTP enrollment (QR, 5 min) or 6-digit verification. Access token 5 min (kept in browser
   memory), refresh token in an httpOnly SameSite=Strict cookie on `/api/auth/`, rotated on use
-  (reuse closes the session). The rotation is a conditional UPDATE: a tab that loses a race gets
-  409 `REFRESH_CONFLICT`, the cookie is **not** cleared (it is shared by all tabs) and the client
-  retries once; tabs also serialize refreshes with the Web Locks API. Every request checks the
-  `session` row: single session, 15-minute inactivity, deactivated account; the role is read from
-  the account on each request. Lockout: 3 failures (password, verification code or enrollment
-  code) → 15 minutes, enforced in every step (login, enrollment start/confirm, verify): while
-  locked even the right code is refused. The pre-auth token is a stateless JWT (several attempts
-  allowed until it expires). TOTP secrets encrypted with Fernet.
+  (reuse closes the session). Session writes go through three intent methods of
+  `SessionRepository` (`record_activity`, `rotate_refresh_token`, `record_termination`), each a
+  single conditional UPDATE of its own columns **and only while the row is ACTIVE**: a late write
+  never reopens a closed session (audit F-01/F-02) nor undoes another request's rotation, and the
+  first closing reason wins (the second termination writes nothing and is not audited). Never
+  add a generic "save the whole session" method. A tab that loses a rotation race gets 409
+  `REFRESH_CONFLICT`, the cookie is **not** cleared (it is shared by all tabs) and the client
+  retries once; tabs also serialize refreshes with the Web Locks API. If the session was closed
+  meanwhile, the refresh answers its closing reason instead. Every request checks the `session`
+  row: single session, 15-minute inactivity, deactivated account; the role is read from the
+  account on each request. Lockout: 3 failures (password, verification code or enrollment code)
+  → 15 minutes, enforced in every step (login, enrollment start/confirm, verify): while locked
+  even the right code is refused. **Unknown emails** follow the same counter and lock
+  (`UnknownEmailAttempts`, kept in the cache under an HMAC of the email, never the address), so
+  answers never reveal which emails exist (audit F-03a). Accepted trade-off (F-03b): anyone can
+  lock a known account for 15 minutes; mitigated by the per-IP limits and the manual unlock.
+  **Rate limits per IP** (audit F-04): `auth_login` 10/min, `auth_code` 20/min (enrollment and
+  verify), `auth_refresh` 60/min; 429 answers `code: RATE_LIMITED` with a Spanish message and a
+  `Retry-After` header. `auth_refresh` counts page loads/reloads, new tabs and the 5-minute token
+  renewal of each tab, shared by everyone behind the same IP (not SPA navigation). A refresh 429
+  is **never a logout** (the session is still open): on page load the loading screen shows
+  "Demasiadas solicitudes desde esta conexión. Reintentando en N segundos…" and retries after
+  `Retry-After` (up to 3 times, then /login with the message); inside the app the request that
+  needed the token fails with the server's message (`renewAfter401` in `http.ts`). The
+  pre-auth token is a stateless JWT (several attempts allowed until it expires). TOTP secrets
+  encrypted with Fernet.
+- **Client IP:** `client_ip()` uses DRF's `get_ident` (the same as the rate limits): behind
+  `NUM_PROXIES` trusted proxies it reads `X-Forwarded-For`, with 0 it ignores that header. Set
+  `NUM_PROXIES` to the real number of reverse proxies in production, never higher.
+- **Tests:** an autouse fixture clears the cache before and after each test (rate-limit counters
+  and unknown-email locks live there).
 - **State transitions** are `POST` actions (`/activate/`, `/deactivate/`, later `/approve/`…).
 - **Customers:** abstract `Customer` with `NaturalPerson` / `LegalEntity` (factory
   `Customer.register`). NIT validated with the DIAN check digit; natural ID 5–15 digits; tax id and
@@ -200,7 +223,14 @@ The first push/PR happens when the user decides (first release with several modu
 - **AI in production**: verified in Docker with OpenCode Go (development only); switch to a
   pay-as-you-go provider (OpenCode Zen or OpenRouter) before any real deployment.
 - Dashboard, weekly report and audit-log screens: define during development.
-- Production keys `JWT_SIGNING_KEY`, `TOTP_ENCRYPTION_KEY`: required before any real deployment.
+- **Production settings module** (`config/settings/prod.py`, before any real deployment; audit
+  N-01…N-03): refuse to start without `JWT_SIGNING_KEY` and `TOTP_ENCRYPTION_KEY` (today both are
+  silently derived from `SECRET_KEY`), `DEBUG=False`, `REFRESH_COOKIE_SECURE=True`, hide
+  `/api/docs/`, `/api/redoc/` and `/api/schema/`, and make the entrypoints (`manage.py`,
+  `wsgi.py`, `asgi.py`, `celery.py`) not default to `dev` there. Also cap the login password at
+  72 bytes (bcrypt limit; the policy already does it for new passwords).
+- Security audit record: `docs/security-audit-2026-11-26.md` (Carlos Cuervo); keep its status
+  table updated when an item is fixed.
 - **Database roles (before any real deployment):** today Django connects as `imsi`, owner and
   superuser, who can disable the audit triggers. Split into an owner role used only by `migrate`
   and an application role (backend, worker, beat) that does not own the tables and has only

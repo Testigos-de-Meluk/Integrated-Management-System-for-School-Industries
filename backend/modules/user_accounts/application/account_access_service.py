@@ -14,6 +14,9 @@ from modules.user_accounts.ports.inbound.account_access import (
     CredentialCheckResult,
     FailedAttemptResult,
 )
+from modules.user_accounts.ports.outbound.unknown_email_attempt_store import (
+    UnknownEmailAttemptStore,
+)
 from modules.user_accounts.ports.outbound.user_repository import UserRepository
 
 
@@ -32,9 +35,11 @@ class AccountAccessService(AccountAccess):
         self,
         repository: UserRepository,
         password_hasher: PasswordHasher,
+        unknown_email_attempts: UnknownEmailAttemptStore,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self._repository = repository
+        self._unknown_attempts = unknown_email_attempts
         self._hasher = password_hasher
         self._now = clock
         self._dummy_hash: str | None = None
@@ -46,12 +51,31 @@ class AccountAccessService(AccountAccess):
             self._dummy_hash = self._hasher.hash(secrets.token_urlsafe(16))
         self._hasher.matches(raw_password, self._dummy_hash)
 
+    def _check_unknown_email(self, email: str, raw_password: str, now: datetime):
+        """Same answers, at the same moments, as a real account (audit F-03a): otherwise the
+        lockout message would reveal which emails are registered. Like a real locked account, a
+        locked one is answered before comparing the password (same timing too)."""
+        attempts = self._unknown_attempts.get(email)
+        if attempts.is_locked(now):
+            return CredentialCheckResult(
+                CredentialCheckOutcome.LOCKED, locked_until=attempts.locked_until
+            )
+        self._compare_with_dummy(raw_password)
+        locked_now = attempts.register_failure(now)
+        self._unknown_attempts.save(email, attempts)
+        if locked_now:
+            # ``locked_now`` stays False: no account was locked, so the audit says LOGIN_FAILED.
+            return CredentialCheckResult(
+                CredentialCheckOutcome.LOCKED, locked_until=attempts.locked_until
+            )
+        return CredentialCheckResult(CredentialCheckOutcome.INVALID_CREDENTIALS)
+
     def check_credentials(self, email: str, raw_password: str) -> CredentialCheckResult:
         now = self._now()
-        user = self._repository.get_by_email(normalize_email(email))
+        normalized = normalize_email(email)
+        user = self._repository.get_by_email(normalized)
         if user is None:
-            self._compare_with_dummy(raw_password)
-            return CredentialCheckResult(CredentialCheckOutcome.INVALID_CREDENTIALS)
+            return self._check_unknown_email(normalized, raw_password, now)
 
         # FR-01-01 (corrected): a locked account is rejected before checking the password.
         if user.is_locked(now):

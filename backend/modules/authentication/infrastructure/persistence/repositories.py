@@ -56,22 +56,30 @@ class DjangoSessionRepository(SessionRepository):
     def add(self, session: Session) -> None:
         _apply_session(session, SessionModel()).save(force_insert=True)
 
-    def update(self, session: Session, *, expected_refresh_token_id: str | None = None) -> bool:
-        queryset = SessionModel.objects.filter(pk=session.id)
-        if expected_refresh_token_id is not None:
-            queryset = queryset.filter(refresh_token_id=expected_refresh_token_id)
-        # A single UPDATE condition, not read-then-write: two tabs refreshing with the same cookie
-        # cannot overwrite each other, so the loser gets ``False`` instead of closing both sessions.
-        values = {
-            "last_activity_at": session.last_activity_at,
-            "refresh_token_id": session.refresh_token_id,
-            "status": session.status.value,
-            "termination_reason": (
-                session.termination_reason.value if session.termination_reason else ""
-            ),
-            "terminated_at": session.terminated_at,
-        }
-        return queryset.update(**values) == 1
+    # Single conditional UPDATEs, never read-then-write: under READ COMMITTED a concurrent UPDATE
+    # waits for the other one's commit and then re-checks the WHERE, so the loser matches 0 rows.
+
+    def _active(self, session: Session):
+        return SessionModel.objects.filter(pk=session.id, status=SessionModel.Status.ACTIVE)
+
+    def record_activity(self, session: Session) -> bool:
+        return self._active(session).update(last_activity_at=session.last_activity_at) == 1
+
+    def rotate_refresh_token(self, session: Session, expected_refresh_token_id: str) -> bool:
+        matching = self._active(session).filter(refresh_token_id=expected_refresh_token_id)
+        return matching.update(refresh_token_id=session.refresh_token_id) == 1
+
+    def record_termination(self, session: Session) -> bool:
+        return (
+            self._active(session).update(
+                status=session.status.value,
+                termination_reason=(
+                    session.termination_reason.value if session.termination_reason else ""
+                ),
+                terminated_at=session.terminated_at,
+            )
+            == 1
+        )
 
     def active_sessions_of(self, user_id: UUID) -> list[Session]:
         models = SessionModel.objects.filter(user_id=user_id, status=SessionModel.Status.ACTIVE)

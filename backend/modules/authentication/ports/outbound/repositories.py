@@ -12,10 +12,23 @@ class SessionRepository(ABC):
     @abstractmethod
     def add(self, session: Session) -> None: ...
 
+    # Each write changes only its own columns and only while the stored row is still ACTIVE, in a
+    # single conditional UPDATE. A late write can therefore never bring a closed session back
+    # (audit F-01/F-02) nor undo another request's rotation. ``False`` = the row did not match.
+
     @abstractmethod
-    def update(self, session: Session, *, expected_refresh_token_id: str | None = None) -> bool:
-        """Persists the session. Returns ``False`` if the row no longer matched
-        ``expected_refresh_token_id`` (another request rotated it first)."""
+    def record_activity(self, session: Session) -> bool:
+        """Writes ``last_activity_at`` only. ``False`` if the session is no longer active."""
+
+    @abstractmethod
+    def rotate_refresh_token(self, session: Session, expected_refresh_token_id: str) -> bool:
+        """Writes the new ``refresh_token_id`` if the session is active and still holds
+        ``expected_refresh_token_id``; ``False`` if it was closed or another request rotated."""
+
+    @abstractmethod
+    def record_termination(self, session: Session) -> bool:
+        """Writes status, reason and time. ``False`` if it was already closed (the first reason
+        wins: it is the one the user must be told about)."""
 
     @abstractmethod
     def active_sessions_of(self, user_id: UUID) -> list[Session]: ...

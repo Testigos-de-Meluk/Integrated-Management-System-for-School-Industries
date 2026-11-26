@@ -229,12 +229,13 @@ class AuthService(AuthUseCases):
 
         previous_token_id = session.refresh_token_id
         session.rotate_refresh_token(secrets.token_urlsafe(24))
-        # The conditional update makes the rotation atomic: if another tab already rotated, the
-        # session is left untouched and only this request fails (no shared session to kill).
-        # RefreshConflict (not SessionEnded) so the view keeps the cookie: it is shared by every
-        # tab and the winner's new one must not be erased.
-        if not self._sessions.update(session, expected_refresh_token_id=previous_token_id):
-            return Outcome.fail(RefreshConflict())
+        # The conditional update makes the rotation atomic and never revives a session that was
+        # closed meanwhile (audit F-02). If another tab already rotated, only this request fails
+        # with RefreshConflict (not SessionEnded) so the view keeps the cookie: it is shared by
+        # every tab and the winner's new one must not be erased.
+        if not self._sessions.rotate_refresh_token(session, previous_token_id):
+            closed = self._closed_meanwhile(session)
+            return Outcome.fail(closed or RefreshConflict())
         return Outcome.ok(self._issue_tokens(account, session, now))
 
     def authenticate(self, access_token: str, source_ip: str | None) -> Actor:
@@ -251,8 +252,10 @@ class AuthService(AuthUseCases):
         account = self._accounts.get_account(session.user_id)
         if account is None or not account.is_active:
             raise AccountInactive()
-        if session.touch(now):
-            self._sessions.update(session)
+        # Only the activity column, and only while still active: a logout or a login elsewhere
+        # that committed meanwhile is never undone (audit F-01, FR-01-05).
+        if session.touch(now) and not self._sessions.record_activity(session):
+            raise self._closed_meanwhile(session) or SessionEnded()
         # The role is read from the account on every request, so role changes apply at once.
         return Actor.for_role(
             RoleType(account.role),
@@ -282,6 +285,14 @@ class AuthService(AuthUseCases):
             self._terminate(session, TerminationReason(reason), now)
 
     # --- Helpers ------------------------------------------------------------------------------
+
+    def _closed_meanwhile(self, session: Session) -> DomainError | None:
+        """After a conditional write matched nothing: the error to answer if the session was
+        closed by another request, or ``None`` if it is still open (e.g. a rotation race)."""
+        current = self._sessions.get(session.id)
+        if current is None:
+            return SessionEnded()
+        return self._error_for_terminated(current) if current.is_terminated else None
 
     def _account_from_pre_auth(self, token: str, purpose: PreAuthPurpose) -> AccountSummary:
         claims = self._tokens.read_pre_auth(token)
@@ -337,7 +348,8 @@ class AuthService(AuthUseCases):
         actor: Actor | None = None,
     ) -> None:
         session.terminate(reason, now)
-        self._sessions.update(session)
+        if not self._sessions.record_termination(session):
+            return  # another request closed it first: its reason and its audit entry stand
         self._audit.log(
             AuditRecord(
                 action=AuditAction.LOGOUT,

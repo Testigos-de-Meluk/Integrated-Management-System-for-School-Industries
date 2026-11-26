@@ -48,6 +48,23 @@ two items and left the rest open. State of each record on that commit:
 The refresh-cookie race this push fixes is a different one from F-02: it is about two tabs
 erasing a shared cookie, not about a termination being overwritten.
 
+## Status after the fixes of F-01…F-04 (26-nov, Cristofer Ordoñez)
+
+F-01, F-02 and F-03a were first **reproduced** with tests (two copies of the same session row
+written in the problematic order; four failed logins against a real and an unknown email), then
+fixed. Each fix has a regression test in `backend/tests/authentication/test_api.py`.
+
+| # | State | Fix |
+|---|---|---|
+| F-01 | **Fixed** | `SessionRepository.update()` was replaced by three intent methods. `record_activity` writes only `last_activity_at`, and only `WHERE status = 'ACTIVE'`; if it matches nothing, the request fails with the session's closing reason |
+| F-02 | **Fixed** | `rotate_refresh_token` writes only `refresh_token_id`, `WHERE status = 'ACTIVE' AND refresh_token_id = <expected>`. A session closed meanwhile answers its closing reason (cookie cleared); a lost race between tabs still answers `REFRESH_CONFLICT` (cookie kept) |
+| F-01/F-02 (related) | **Fixed** | `record_termination` is also guarded by `status = 'ACTIVE'`: the first closing reason wins and a second closing writes nothing and is not audited twice. Activity writes can no longer undo a concurrent rotation either |
+| F-03a (enumeration) | **Fixed** | Unknown emails follow the same counter and lock as real accounts (`UnknownEmailAttempts`, stored in the cache under an HMAC of the email), so both get the same answers at the same attempts and with the same timing |
+| F-03b (lockout DoS) | **Accepted** | Inherent to FR-01-01/FR-01-14 (the lock is checked before the password). Mitigated by F-04 and the manual unlock (US 1.23); recorded in the corrections README |
+| F-04 | **Fixed** | Per-IP `throttle_scope` on every auth view: `auth_login` 10/min, `auth_code` 20/min, `auth_refresh` 60/min. 429 answers `code: RATE_LIMITED` with a Spanish message |
+| Hardening: `NUM_PROXIES` | **Fixed** | Partly accurate: DRF's throttles did read it, but `client_ip()` (the audited `source_ip`) used `REMOTE_ADDR`. It now uses the same `get_ident` as the throttles and drops values that are not IP addresses |
+| N-01…N-03, bcrypt 72 bytes, public `/api/docs/` | **Open (deployment)** | Planned as a production settings module; see CLAUDE.md pending items and item 7 of the corrections README |
+
 ## Hardening notes (not findings)
 
 `NUM_PROXIES` is configured but never read, so audited `source_ip` is the proxy address;

@@ -3,10 +3,11 @@
 from datetime import timedelta
 
 import pytest
+from django.core.cache import cache
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from modules.authentication.domain.session import SessionStatus
+from modules.authentication.domain.session import SessionStatus, TerminationReason
 from modules.authentication.infrastructure.models import SessionModel, TotpEnrollmentModel
 from modules.authentication.infrastructure.persistence.repositories import DjangoSessionRepository
 from modules.shared_kernel.domain.security import RoleType
@@ -202,6 +203,68 @@ def test_three_wrong_passwords_lock_the_account_and_failures_are_persisted(creat
     assert actions.count("LOGIN_FAILED") == 3 and actions.count("ACCOUNT_LOCKED") == 1
 
 
+def test_lockout_answers_do_not_reveal_which_emails_are_registered(create_account):
+    """Audit F-03a: an unknown email gets the same answers, at the same attempt, as a real one."""
+    create_account()
+
+    def answers(email):
+        return [
+            login(APIClient(), email=email, password="Mala#2026x").json()["code"] for _ in range(4)
+        ]
+
+    real, unknown = answers(EMAIL), answers("Nadie@Empresa.com ")
+
+    assert (
+        real
+        == unknown
+        == [
+            "INVALID_CREDENTIALS",
+            "INVALID_CREDENTIALS",
+            "ACCOUNT_LOCKED",
+            "ACCOUNT_LOCKED",
+        ]
+    )
+    assert not AuditEntryModel.objects.filter(  # no account was locked for the unknown email
+        action="ACCOUNT_LOCKED", actor_label="nadie@empresa.com"
+    ).exists()
+    assert "nadie@empresa.com" not in str(cache._cache)  # the cache keys by a keyed hash
+
+
+def test_login_attempts_are_rate_limited_per_ip(create_account, settings):
+    """Audit F-04: one address cannot keep trying (or locking) account after account."""
+    create_account()
+    client = APIClient(REMOTE_ADDR="203.0.113.7")
+    for number in range(10):
+        login(client, email=f"usuario{number}@empresa.com", password="Mala#2026x")
+
+    blocked = login(client, email="otro@empresa.com", password="Mala#2026x")
+    other_ip = login(APIClient(REMOTE_ADDR="203.0.113.8"))
+
+    assert blocked.status_code == 429 and blocked.json()["code"] == "RATE_LIMITED"
+    assert blocked.json()["detail"].startswith("Demasiados intentos desde esta conexión.")
+    assert other_ip.status_code == 200  # the limit is per address, not global
+
+
+def test_audited_ip_ignores_a_forged_header_without_trusted_proxies(create_account):
+    """NUM_PROXIES=0: X-Forwarded-For is set by the client, so it must not be trusted."""
+    create_account()
+    login(
+        APIClient(REMOTE_ADDR="198.51.100.4", HTTP_X_FORWARDED_FOR="10.9.9.9"),
+        password="Mala#2026x",
+    )
+    assert AuditEntryModel.objects.get(action="LOGIN_FAILED").source_ip == "198.51.100.4"
+
+
+def test_audited_ip_is_the_client_behind_a_trusted_proxy(create_account, settings):
+    settings.REST_FRAMEWORK = {**settings.REST_FRAMEWORK, "NUM_PROXIES": 1}
+    create_account()
+    login(
+        APIClient(REMOTE_ADDR="10.0.0.2", HTTP_X_FORWARDED_FOR="198.51.100.9"),
+        password="Mala#2026x",
+    )
+    assert AuditEntryModel.objects.get(action="LOGIN_FAILED").source_ip == "198.51.100.9"
+
+
 def test_three_wrong_codes_lock_the_account(create_account):
     create_account()
     enroll_and_login(APIClient(), EMAIL)
@@ -257,10 +320,82 @@ def test_a_lost_refresh_race_does_not_kill_the_session(create_account):
     first.rotate_refresh_token("winner")
     second.rotate_refresh_token("loser")
 
-    assert repository.update(first, expected_refresh_token_id=previous) is True
-    assert repository.update(second, expected_refresh_token_id=previous) is False
+    assert repository.rotate_refresh_token(first, previous) is True
+    assert repository.rotate_refresh_token(second, previous) is False
     stored = repository.get(model.id)
     assert stored.refresh_token_id == "winner" and stored.status is SessionStatus.ACTIVE
+
+
+def two_copies_of_the_session(create_account):
+    """Two requests that read the same session row before either of them writes."""
+    create_account()
+    enroll_and_login(APIClient(), EMAIL)
+    repository = DjangoSessionRepository()
+    model = SessionModel.objects.get()
+    return repository, repository.get(model.id), repository.get(model.id)
+
+
+def test_a_late_activity_write_does_not_revive_a_closed_session(create_account):
+    """Audit F-01: a logout (or a login elsewhere, FR-01-05) that committed first must stand."""
+    repository, in_flight, closing = two_copies_of_the_session(create_account)
+    closing.terminate(TerminationReason.NEW_LOGIN, timezone.now())
+    assert repository.record_termination(closing) is True
+
+    in_flight.touch(timezone.now() + timedelta(minutes=5))
+    assert repository.record_activity(in_flight) is False
+    stored = SessionModel.objects.get()
+    assert stored.status == "TERMINATED" and stored.termination_reason == "NEW_LOGIN"
+
+
+def test_a_late_rotation_does_not_revive_a_closed_session(create_account):
+    """Audit F-02: closing does not change the token id, so the guard also checks the status."""
+    repository, refreshing, closing = two_copies_of_the_session(create_account)
+    previous = refreshing.refresh_token_id
+    closing.terminate(TerminationReason.LOGOUT, timezone.now())
+    repository.record_termination(closing)
+
+    refreshing.rotate_refresh_token("late")
+    assert repository.rotate_refresh_token(refreshing, previous) is False
+    stored = SessionModel.objects.get()
+    assert stored.status == "TERMINATED" and stored.refresh_token_id == previous
+
+
+def test_an_activity_write_does_not_undo_a_rotation(create_account):
+    """Activity writes only its own column: a refresh that happened meanwhile is kept."""
+    repository, in_flight, refreshing = two_copies_of_the_session(create_account)
+    refreshing.rotate_refresh_token("rotated")
+    repository.rotate_refresh_token(refreshing, in_flight.refresh_token_id)
+
+    in_flight.touch(timezone.now() + timedelta(minutes=5))
+    assert repository.record_activity(in_flight) is True
+    assert SessionModel.objects.get().refresh_token_id == "rotated"
+
+
+def test_the_first_closing_reason_wins(create_account):
+    repository, first, second = two_copies_of_the_session(create_account)
+    first.terminate(TerminationReason.LOGOUT, timezone.now())
+    second.terminate(TerminationReason.INACTIVITY, timezone.now())
+    assert repository.record_termination(first) is True
+    assert repository.record_termination(second) is False
+    assert SessionModel.objects.get().termination_reason == "LOGOUT"
+
+
+def test_a_refresh_after_a_concurrent_logout_is_refused(create_account, monkeypatch):
+    """The refresh read the session as active, but a logout committed before its write."""
+    create_account()
+    client = APIClient()
+    enroll_and_login(client, EMAIL)
+    original = DjangoSessionRepository.rotate_refresh_token
+
+    def logout_commits_first(self, session, expected):
+        SessionModel.objects.update(status="TERMINATED", termination_reason="LOGOUT")
+        return original(self, session, expected)
+
+    monkeypatch.setattr(DjangoSessionRepository, "rotate_refresh_token", logout_commits_first)
+    response = client.post("/api/auth/refresh/")
+
+    assert response.status_code == 401 and response.json()["code"] == "SESSION_ENDED"
+    assert SessionModel.objects.get().status == "TERMINATED"
 
 
 def test_the_loser_of_a_refresh_race_keeps_the_shared_cookie(create_account, monkeypatch):
@@ -268,13 +403,13 @@ def test_the_loser_of_a_refresh_race_keeps_the_shared_cookie(create_account, mon
     create_account()
     client = APIClient()
     enroll_and_login(client, EMAIL)
-    original_update = DjangoSessionRepository.update
+    original = DjangoSessionRepository.rotate_refresh_token
 
-    def other_tab_rotates_first(self, session, **kwargs):
+    def other_tab_rotates_first(self, session, expected):
         SessionModel.objects.update(refresh_token_id="rotated-by-the-other-tab")
-        return original_update(self, session, **kwargs)
+        return original(self, session, expected)
 
-    monkeypatch.setattr(DjangoSessionRepository, "update", other_tab_rotates_first)
+    monkeypatch.setattr(DjangoSessionRepository, "rotate_refresh_token", other_tab_rotates_first)
     response = client.post("/api/auth/refresh/")
 
     assert response.status_code == 409 and response.json()["code"] == "REFRESH_CONFLICT"

@@ -5,6 +5,7 @@ from collections.abc import Callable
 
 import pyotp
 import pytest
+from django.core.cache import cache
 from rest_framework.test import APIClient
 
 from modules.shared_kernel.domain.security import RoleType
@@ -15,6 +16,14 @@ from modules.user_accounts.infrastructure.persistence.django_user_repository imp
 )
 
 DEFAULT_PASSWORD = "Segura#2026"
+
+
+@pytest.fixture(autouse=True)
+def _fresh_cache():
+    """Rate-limit counters and unknown-email lockouts live in the cache: no test inherits them."""
+    cache.clear()
+    yield
+    cache.clear()
 
 
 @pytest.fixture

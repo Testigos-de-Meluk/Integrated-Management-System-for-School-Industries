@@ -43,10 +43,15 @@ export type SessionState = {
   user: CurrentUser | null;
   /** Message for the login screen, e.g. "Su sesión ha caducado por inactividad". */
   notice: string | null;
+  /**
+   * While "loading": the session check was rate-limited (429) and is retried at this time
+   * (epoch ms). The loading screen shows a countdown instead of sending the user to /login.
+   */
+  retryAt: number | null;
 };
 
 let accessToken: string | null = null;
-let state: SessionState = { status: "loading", user: null, notice: null };
+let state: SessionState = { status: "loading", user: null, notice: null, retryAt: null };
 const listeners = new Set<() => void>();
 
 function setState(next: SessionState) {
@@ -64,13 +69,18 @@ export function getSessionState(): SessionState {
 
 export function startSession(token: string, user: CurrentUser): void {
   accessToken = token;
-  setState({ status: "authenticated", user, notice: null });
+  setState({ status: "authenticated", user, notice: null, retryAt: null });
 }
 
 /** Ends the session in this tab. ``notice`` is shown on the login screen. */
 export function endSession(notice: string | null = null): void {
   accessToken = null;
-  setState({ status: "anonymous", user: null, notice });
+  setState({ status: "anonymous", user: null, notice, retryAt: null });
+}
+
+/** The session check on page load must wait until ``retryAt`` (rate limit, HTTP 429). */
+export function waitForSessionCheck(retryAt: number): void {
+  setState({ ...state, retryAt });
 }
 
 export function clearNotice(): void {

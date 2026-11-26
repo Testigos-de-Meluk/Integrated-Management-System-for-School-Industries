@@ -61,11 +61,13 @@ class PublicAuthView(APIView):
 
 
 class LoginView(PublicAuthView):
+    throttle_scope = "auth_login"  # audit F-04: per IP
+
     @extend_schema(
         tags=TAG,
         summary="Step 1: email + password → pre-authentication token",
         request=LoginSerializer,
-        responses={200: LoginChallengeSerializer, 401: ERROR},
+        responses={200: LoginChallengeSerializer, 401: ERROR, 429: ERROR},
     )
     def post(self, request: Request) -> Response:
         payload = LoginSerializer(data=request.data)
@@ -79,6 +81,8 @@ class LoginView(PublicAuthView):
 
 
 class EnrollmentStartView(PublicAuthView):
+    throttle_scope = "auth_code"
+
     @extend_schema(
         tags=TAG,
         summary="Step 2 (first login): QR code and secret to link the authenticator app",
@@ -93,6 +97,8 @@ class EnrollmentStartView(PublicAuthView):
 
 
 class EnrollmentConfirmView(PublicAuthView):
+    throttle_scope = "auth_code"
+
     @extend_schema(
         tags=TAG,
         summary="Step 3 (first login): confirm the link with a code and open the session",
@@ -113,6 +119,8 @@ class EnrollmentConfirmView(PublicAuthView):
 
 
 class VerifyCodeView(PublicAuthView):
+    throttle_scope = "auth_code"
+
     @extend_schema(
         tags=TAG,
         summary="Step 2: 6-digit code from the authenticator app → session",
@@ -133,6 +141,8 @@ class VerifyCodeView(PublicAuthView):
 
 
 class RefreshView(PublicAuthView):
+    throttle_scope = "auth_refresh"
+
     @extend_schema(
         tags=TAG,
         summary="New access token using the refresh cookie (does not count as activity)",
