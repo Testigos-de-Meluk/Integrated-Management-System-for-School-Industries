@@ -25,6 +25,8 @@ Sources of truth, in order of precedence:
   **Spanish**.
 - **Git:** work on `feat/first-release` (not pushed to `main`; no PR until the first release is
   ready). Conventional commits (`feat:`, `fix:`, `docs:`, `refactor:`). Commit only when the user asks.
+  **No AI attribution**: commit messages and PR descriptions never carry `Co-Authored-By: Claude…`
+  or "Generated with Claude Code" lines (team decision, November 2026).
 - **Never** commit `.env` or secrets. Use synthetic data in tests (NFR-05-02).
 - GitHub Actions / CI: postponed (not configured yet).
 
