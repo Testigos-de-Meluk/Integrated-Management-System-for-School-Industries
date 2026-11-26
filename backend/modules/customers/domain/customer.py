@@ -13,6 +13,7 @@ from typing import ClassVar
 from uuid import UUID, uuid4
 
 from modules.shared_kernel.domain.exceptions import ValidationError
+from modules.shared_kernel.domain.text import REQUIRED, clean_text
 
 from .exceptions import CustomerReadOnly, InvalidCustomerStatusChange
 from .tax_id import normalize_natural_id, normalize_nit
@@ -23,7 +24,6 @@ PHONE_MAX_LENGTH = 30
 EMAIL_MAX_LENGTH = 254
 CONTACT_MAX_LENGTH = 150
 
-REQUIRED = "Este campo es obligatorio."
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _PHONE = re.compile(r"^\+?[\d\s()-]{7,30}$")
 
@@ -38,26 +38,17 @@ class CustomerStatus(StrEnum):
     INACTIVE = "INACTIVE"
 
 
-def _clean(value: str | None, field_name: str, max_length: int, errors: dict, required=True) -> str:
-    cleaned = " ".join((value or "").split())
-    if required and not cleaned:
-        errors[field_name] = [REQUIRED]
-    elif len(cleaned) > max_length:
-        errors[field_name] = [f"Máximo {max_length} caracteres."]
-    return cleaned
-
-
 def _contact_fields(
     name: str, address: str, primary_phone: str, email: str, commercial_contact: str | None
 ) -> dict[str, str]:
     """Validates the editable fields and returns them cleaned, or raises ``ValidationError``."""
     errors: dict[str, list[str]] = {}
     values = {
-        "name": _clean(name, "name", NAME_MAX_LENGTH, errors),
-        "address": _clean(address, "address", ADDRESS_MAX_LENGTH, errors),
-        "primary_phone": _clean(primary_phone, "primary_phone", PHONE_MAX_LENGTH, errors),
+        "name": clean_text(name, "name", NAME_MAX_LENGTH, errors),
+        "address": clean_text(address, "address", ADDRESS_MAX_LENGTH, errors),
+        "primary_phone": clean_text(primary_phone, "primary_phone", PHONE_MAX_LENGTH, errors),
         "email": (email or "").strip().lower(),
-        "commercial_contact": _clean(
+        "commercial_contact": clean_text(
             commercial_contact, "commercial_contact", CONTACT_MAX_LENGTH, errors, required=False
         ),
     }

@@ -20,6 +20,7 @@ from uuid import UUID, uuid4
 
 from modules.shared_kernel.domain.exceptions import ValidationError
 from modules.shared_kernel.domain.money import PriceRange, to_pesos
+from modules.shared_kernel.domain.text import REQUIRED
 
 from .exceptions import ApprovalIncomplete, InvalidQuotationItems, QuotationLocked
 from .pricing import PriceSource
@@ -31,7 +32,6 @@ MAX_UNIT_PRICE = Decimal(1_000_000_000)  # per unit; totals are stored as DECIMA
 TERMS_MAX_LENGTH = 2000
 REASON_MAX_LENGTH = 1000
 
-REQUIRED = "Este campo es obligatorio."
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _PHONE = re.compile(r"^\+?[\d\s()-]{7,30}$")
 _TAX_ID = re.compile(r"^[\d.\s-]{5,20}$")

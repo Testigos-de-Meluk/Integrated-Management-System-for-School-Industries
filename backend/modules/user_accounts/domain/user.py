@@ -13,6 +13,7 @@ from uuid import UUID, uuid4
 
 from modules.shared_kernel.domain.exceptions import ValidationError
 from modules.shared_kernel.domain.security import RoleType
+from modules.shared_kernel.domain.text import REQUIRED, clean_text
 
 from .exceptions import InvalidAccountStatusChange
 
@@ -24,7 +25,6 @@ JOB_TITLE_MAX_LENGTH = 100
 MAX_FAILED_LOGIN_ATTEMPTS = 3
 LOCKOUT_DURATION = timedelta(minutes=15)
 
-REQUIRED = "Este campo es obligatorio."
 _EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
@@ -35,15 +35,6 @@ class AccountStatus(StrEnum):
 
 def normalize_email(raw: str) -> str:
     return (raw or "").strip().lower()
-
-
-def _clean_text(value: str, field_name: str, max_length: int, errors: dict) -> str:
-    cleaned = " ".join((value or "").split())
-    if not cleaned:
-        errors[field_name] = [REQUIRED]
-    elif len(cleaned) > max_length:
-        errors[field_name] = [f"Máximo {max_length} caracteres."]
-    return cleaned
 
 
 def _validate_email(email: str, errors: dict) -> None:
@@ -77,10 +68,10 @@ class User:
     ) -> "User":
         """Creates an ``ACTIVE`` account (FR-01-11). The password arrives already hashed."""
         errors: dict[str, list[str]] = {}
-        clean_name = _clean_text(full_name, "full_name", FULL_NAME_MAX_LENGTH, errors)
+        clean_name = clean_text(full_name, "full_name", FULL_NAME_MAX_LENGTH, errors)
         clean_email = normalize_email(email)
         _validate_email(clean_email, errors)
-        clean_job = _clean_text(job_title, "job_title", JOB_TITLE_MAX_LENGTH, errors)
+        clean_job = clean_text(job_title, "job_title", JOB_TITLE_MAX_LENGTH, errors)
         if errors:
             raise ValidationError(errors)
         return cls(
@@ -96,8 +87,8 @@ class User:
     def update_profile(self, full_name: str, job_title: str) -> None:
         """The email is the login key and can never change, so there is no method for it."""
         errors: dict[str, list[str]] = {}
-        clean_name = _clean_text(full_name, "full_name", FULL_NAME_MAX_LENGTH, errors)
-        clean_job = _clean_text(job_title, "job_title", JOB_TITLE_MAX_LENGTH, errors)
+        clean_name = clean_text(full_name, "full_name", FULL_NAME_MAX_LENGTH, errors)
+        clean_job = clean_text(job_title, "job_title", JOB_TITLE_MAX_LENGTH, errors)
         if errors:
             raise ValidationError(errors)
         self.full_name = clean_name
