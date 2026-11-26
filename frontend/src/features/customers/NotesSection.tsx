@@ -20,7 +20,7 @@ function messageOf(error: unknown): string {
 /** Internal commercial notes of a customer (US 2.21 … US 2.24). */
 export function NotesSection({ customerId, readOnly }: { customerId: string; readOnly: boolean }) {
   const [page, setPage] = useState(1);
-  const { data, isPending } = useNotes(customerId, page);
+  const { data, isError, isPending } = useNotes(customerId, page);
   const addNote = useAddNote();
   const deleteNote = useDeleteNote();
   const [text, setText] = useState("");
@@ -77,7 +77,11 @@ export function NotesSection({ customerId, readOnly }: { customerId: string; rea
         </div>
       )}
 
-      {isPending ? (
+      {isError ? (
+        <p role="alert" className="text-sm text-red-700">
+          No fue posible cargar las notas. Intente de nuevo.
+        </p>
+      ) : isPending ? (
         <p className="text-sm text-slate-500">Cargando notas…</p>
       ) : !data || data.results.length === 0 ? (
         <p className="text-sm text-slate-500">Este cliente no tiene notas registradas.</p>

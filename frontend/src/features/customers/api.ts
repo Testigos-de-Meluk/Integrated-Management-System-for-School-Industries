@@ -100,7 +100,11 @@ export function useCustomerByTaxId(taxId: string) {
 export function useCustomerHistory(customerId: string | undefined, page: number) {
   return useQuery({
     queryKey: keys.history(customerId ?? "", page),
-    queryFn: () => api.get<Paginated<HistoryEntry>>(`/customers/${customerId}/history/`, { page }),
+    queryFn: () =>
+      api.get<Paginated<HistoryEntry>>(`/customers/${customerId}/history/`, {
+        page,
+        page_size: 50,
+      }),
     enabled: Boolean(customerId),
   });
 }

@@ -4,6 +4,7 @@ import { NavLink, Outlet } from "react-router";
 import { authApi } from "@/features/auth/api";
 import {
   endSession,
+  getSessionState,
   hasPermission,
   ROLE_LABELS,
   useSession,
@@ -36,7 +37,8 @@ export function AppLayout() {
     } catch {
       // Even if the request fails, this tab forgets the session.
     }
-    endSession(null);
+    // Another path (inactivity, token reuse) may have closed it with a reason: keep that notice.
+    if (getSessionState().status !== "anonymous") endSession(null);
   };
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>

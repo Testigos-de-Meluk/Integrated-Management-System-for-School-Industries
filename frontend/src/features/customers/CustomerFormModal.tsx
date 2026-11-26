@@ -155,8 +155,23 @@ function EditForm({ customer, onDone }: { customer: Customer; onDone: () => void
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2">
-        <TextField label="Tipo de cliente" value={TYPE_LABELS[customer.customer_type]} disabled readOnly />
-        <TextField label={labels.taxId} value={customer.tax_id} disabled readOnly hint="No se puede modificar." />
+        <TextField
+          id="customer_type"
+          name="customer_type"
+          label="Tipo de cliente"
+          value={TYPE_LABELS[customer.customer_type]}
+          disabled
+          readOnly
+        />
+        <TextField
+          id="tax_id"
+          name="tax_id"
+          label={labels.taxId}
+          value={customer.tax_id}
+          disabled
+          readOnly
+          hint="No se puede modificar."
+        />
       </div>
       <ContactInputs register={register} errors={errors} nameLabel={labels.name} />
       <p className="text-xs text-slate-500">

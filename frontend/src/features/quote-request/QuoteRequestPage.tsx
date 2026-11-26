@@ -517,6 +517,7 @@ function ProductCard({
 function SummaryStep({ quotation, onRestart }: { quotation: PreliminaryQuotation; onRestart: () => void }) {
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const sendEmail = async () => {
@@ -530,6 +531,18 @@ function SummaryStep({ quotation, onRestart }: { quotation: PreliminaryQuotation
       );
     } finally {
       setSending(false);
+    }
+  };
+
+  const downloadPdf = async () => {
+    setDownloading(true);
+    setError(null);
+    try {
+      await quoteApi.pdf(quotation);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No fue posible descargar el PDF.");
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -594,13 +607,9 @@ function SummaryStep({ quotation, onRestart }: { quotation: PreliminaryQuotation
       <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-5">
         <h2 className="text-lg font-medium">Conserva tu cotización</h2>
         <div className="flex flex-wrap gap-2">
-          <a
-            href={quoteApi.pdfUrl(quotation)}
-            download={`${quotation.number}.pdf`}
-            className="inline-flex items-center rounded-md bg-red-700 px-4 py-2 text-sm font-medium text-white hover:bg-red-800"
-          >
-            Descargar PDF preliminar
-          </a>
+          <Button variant="primary" onClick={downloadPdf} disabled={downloading}>
+            {downloading ? "Generando…" : "Descargar PDF preliminar"}
+          </Button>
           <Button variant="secondary" onClick={sendEmail} disabled={sending}>
             {sending ? "Enviando…" : "Recibir por correo"}
           </Button>

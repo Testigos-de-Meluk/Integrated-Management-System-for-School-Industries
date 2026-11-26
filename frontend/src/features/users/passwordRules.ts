@@ -8,8 +8,9 @@ export function satisfiesPolicy(password: string): boolean {
   return (
     password.length >= 8 &&
     password.length <= 64 &&
-    /[A-ZÁÉÍÓÚÑ]/.test(password) &&
-    /[a-záéíóúñ]/.test(password) &&
+    // Same rule as the backend's str.isupper()/str.islower(): any cased letter, not just A-Z.
+    /\p{Lu}/u.test(password) &&
+    /\p{Ll}/u.test(password) &&
     /\d/.test(password) &&
     /[^\p{L}\p{N}\s]/u.test(password)
   );

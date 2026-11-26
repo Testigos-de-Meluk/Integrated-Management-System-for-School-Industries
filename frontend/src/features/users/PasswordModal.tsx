@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { ApiError } from "@/shared/api/http";
+import { applyServerErrors } from "@/shared/forms/serverErrors";
 import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
 import { TextField } from "@/shared/ui/TextField";
@@ -48,11 +48,7 @@ export function PasswordModal({ user, onClose }: { user: UserAccount | null; onC
       });
       onClose();
     } catch (error) {
-      if (error instanceof ApiError && error.fieldErrors.password) {
-        setError("password", { message: error.fieldErrors.password[0] });
-      } else {
-        setGeneralError(error instanceof ApiError ? error.message : "No fue posible conectar con el servidor.");
-      }
+      setGeneralError(applyServerErrors(error, values, setError));
     }
   };
 

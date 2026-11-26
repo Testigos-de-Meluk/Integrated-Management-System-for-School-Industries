@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { ApiError } from "@/shared/api/http";
+import { applyServerErrors } from "@/shared/forms/serverErrors";
 import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
 import { TextField } from "@/shared/ui/TextField";
@@ -25,7 +25,6 @@ const schema = z.object({
 });
 
 type FormValues = z.infer<typeof schema>;
-type FieldName = keyof FormValues;
 
 /** Registers a new product, or edits name and unit of an existing one (the code is read-only). */
 export function ProductFormModal({
@@ -75,18 +74,7 @@ export function ProductFormModal({
       }
       onClose();
     } catch (error) {
-      if (error instanceof ApiError) {
-        let mappedToField = false;
-        Object.entries(error.fieldErrors).forEach(([field, messages]) => {
-          if (field in schema.shape) {
-            setError(field as FieldName, { message: messages[0] });
-            mappedToField = true;
-          }
-        });
-        if (!mappedToField) setGeneralError(error.message);
-      } else {
-        setGeneralError("No fue posible conectar con el servidor. Intente de nuevo.");
-      }
+      setGeneralError(applyServerErrors(error, values, setError));
     }
   };
 
