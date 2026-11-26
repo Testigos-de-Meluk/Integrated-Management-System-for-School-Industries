@@ -56,8 +56,22 @@ class DjangoSessionRepository(SessionRepository):
     def add(self, session: Session) -> None:
         _apply_session(session, SessionModel()).save(force_insert=True)
 
-    def update(self, session: Session) -> None:
-        _apply_session(session, SessionModel.objects.get(pk=session.id)).save()
+    def update(self, session: Session, *, expected_refresh_token_id: str | None = None) -> bool:
+        queryset = SessionModel.objects.filter(pk=session.id)
+        if expected_refresh_token_id is not None:
+            queryset = queryset.filter(refresh_token_id=expected_refresh_token_id)
+        # A single UPDATE condition, not read-then-write: two tabs refreshing with the same cookie
+        # cannot overwrite each other, so the loser gets ``False`` instead of closing both sessions.
+        values = {
+            "last_activity_at": session.last_activity_at,
+            "refresh_token_id": session.refresh_token_id,
+            "status": session.status.value,
+            "termination_reason": (
+                session.termination_reason.value if session.termination_reason else ""
+            ),
+            "terminated_at": session.terminated_at,
+        }
+        return queryset.update(**values) == 1
 
     def active_sessions_of(self, user_id: UUID) -> list[Session]:
         models = SessionModel.objects.filter(user_id=user_id, status=SessionModel.Status.ACTIVE)

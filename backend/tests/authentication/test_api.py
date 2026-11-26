@@ -6,7 +6,9 @@ import pytest
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from modules.authentication.domain.session import SessionStatus
 from modules.authentication.infrastructure.models import SessionModel, TotpEnrollmentModel
+from modules.authentication.infrastructure.persistence.repositories import DjangoSessionRepository
 from modules.shared_kernel.domain.security import RoleType
 from modules.shared_kernel.infrastructure.models import AuditEntryModel
 
@@ -50,6 +52,25 @@ def test_first_login_requires_linking_the_authenticator(create_account):
 
     stored = TotpEnrollmentModel.objects.get()
     assert enrollment["secret"] not in stored.encrypted_secret  # encrypted at rest
+
+
+def test_three_wrong_enrollment_codes_lock_the_account(create_account):
+    """FR-01-03/FR-01-14: a wrong pairing code counts as a failed attempt, like any other."""
+    create_account()
+    client = APIClient()
+    challenge = login(client).json()
+    token = challenge["pre_auth_token"]
+    client.post("/api/auth/enrollment/", {"pre_auth_token": token}, "json")
+
+    for _ in range(3):
+        last = client.post(
+            "/api/auth/enrollment/confirm/",
+            {"pre_auth_token": token, "code": "000000"},
+            "json",
+        )
+
+    assert last.json()["code"] == "ACCOUNT_LOCKED"
+    assert AuditEntryModel.objects.filter(action="ACCOUNT_LOCKED").exists()
 
 
 def test_confirmed_login_returns_access_token_and_httponly_refresh_cookie(create_account):
@@ -196,6 +217,24 @@ def test_refresh_rotates_the_cookie_and_detects_reuse(create_account):
     assert attacker.post("/api/auth/refresh/").status_code == 401
     session = SessionModel.objects.get()
     assert session.status == "TERMINATED" and session.termination_reason == "TOKEN_REUSE"
+
+
+def test_a_lost_refresh_race_does_not_kill_the_session(create_account):
+    """Two tabs refresh with the same cookie: the loser fails, the winner stays open."""
+    create_account()
+    enroll_and_login(APIClient(), EMAIL)
+    repository = DjangoSessionRepository()
+    model = SessionModel.objects.get()
+    first, second = repository.get(model.id), repository.get(model.id)
+    previous = first.refresh_token_id
+
+    first.rotate_refresh_token("winner")
+    second.rotate_refresh_token("loser")
+
+    assert repository.update(first, expected_refresh_token_id=previous) is True
+    assert repository.update(second, expected_refresh_token_id=previous) is False
+    stored = repository.get(model.id)
+    assert stored.refresh_token_id == "winner" and stored.status is SessionStatus.ACTIVE
 
 
 def test_logout_closes_the_session(create_account):

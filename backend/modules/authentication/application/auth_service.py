@@ -124,7 +124,7 @@ class AuthService(AuthUseCases):
 
     def confirm_enrollment(
         self, pre_auth_token: str, code: str, source_ip: str | None
-    ) -> SessionTokens:
+    ) -> Outcome[SessionTokens]:
         now = self._now()
         account = self._account_from_pre_auth(pre_auth_token, PreAuthPurpose.ENROLL_AUTHENTICATOR)
         enrollment = self._enrollments.get_for_user(account.id)
@@ -133,7 +133,18 @@ class AuthService(AuthUseCases):
         enrollment.ensure_can_be_confirmed(now)  # expired → "El tiempo de vinculación ha expirado"
         step = self._two_factor.matching_step(enrollment.secret, code, now)
         if step is None:
-            raise InvalidVerificationCode()  # US 1.2.3: pairing stays pending, retries allowed
+            # FR-01-03/FR-01-14: pairing stays pending, but a wrong code is still a failed attempt.
+            failure = self._accounts.register_failed_second_factor(account.id)
+            self._log_failure(
+                AuditAction.ACCOUNT_LOCKED if failure.locked_now else AuditAction.LOGIN_FAILED,
+                account,
+                account.email,
+                source_ip,
+                "Código de vinculación incorrecto",
+            )
+            if failure.locked_now:
+                return Outcome.fail(AccountLocked(failure.locked_until, now))
+            return Outcome.fail(InvalidVerificationCode())
         enrollment.confirm(now, step)
         self._enrollments.save(enrollment)
         self._audit.log(
@@ -145,7 +156,7 @@ class AuthService(AuthUseCases):
                 new_values={"user_id": str(account.id), "status": enrollment.status.value},
             )
         )
-        return self._open_session(account, source_ip, now)
+        return Outcome.ok(self._open_session(account, source_ip, now))
 
     # --- Step 2b: every other login, 6-digit code (FR-01-03) -----------------------------------
 
@@ -207,8 +218,12 @@ class AuthService(AuthUseCases):
             self._terminate(session, TerminationReason.ACCOUNT_DEACTIVATED, now)
             return Outcome.fail(AccountInactive())
 
+        previous_token_id = session.refresh_token_id
         session.rotate_refresh_token(secrets.token_urlsafe(24))
-        self._sessions.update(session)
+        # The conditional update makes the rotation atomic: if another tab already rotated, the
+        # session is left untouched and only this request fails (no shared session to kill).
+        if not self._sessions.update(session, expected_refresh_token_id=previous_token_id):
+            return Outcome.fail(SessionEnded())
         return Outcome.ok(self._issue_tokens(account, session, now))
 
     def authenticate(self, access_token: str, source_ip: str | None) -> Actor:
@@ -363,8 +378,14 @@ class AuthService(AuthUseCases):
                 action=action,
                 entity_type="User",
                 entity_id=str(account.id) if account else "-",
-                actor=None,
-                actor_type=ActorType.ANONYMOUS,
+                # A known account keeps its actor, so the lockout shows up when filtering by user;
+                # only an unknown e-mail is anonymous.
+                actor=(
+                    Actor.for_role(RoleType(account.role), account.id, source_ip)
+                    if account
+                    else None
+                ),
+                actor_type=None if account else ActorType.ANONYMOUS,
                 actor_label=attempted_email.strip().lower()[:254],
                 source_ip=source_ip,
                 reason=reason,
