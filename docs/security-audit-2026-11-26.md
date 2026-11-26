@@ -29,12 +29,30 @@ late `UPDATE` still matches the row, so the last writer wins and the server's on
 record is advisory. Fix shape: write activity alone (`last_activity_at` guarded by
 `status='ACTIVE'`), and add `status='ACTIVE'` to the conditional update used by refresh.
 
+## Status after `64972f6` (26-nov, team push)
+
+`64972f6` (merged on top of `7ae5c76`, which brings this branch into `first-release`) closed
+two items and left the rest open. State of each record on that commit:
+
+| # | State on `64972f6` | What changed |
+|---|---|---|
+| F-01 | **Open** | `authenticate()` still calls `self._sessions.update(session)` with no status predicate (`application/auth_service.py:255-256`) and `update()` still writes every lifecycle column (`infrastructure/persistence/repositories.py:59-74`) |
+| F-02 | **Open** | The failure type changed to `RefreshConflict` so the shared cookie survives, but the guard is still `WHERE pk [AND refresh_token_id]`; termination does not change that column, so the revival race is unchanged |
+| F-03 | **Open** | `ACCOUNT_LOCKED` is still a distinct code (`domain/exceptions.py:21`); no per-IP limit was added |
+| F-04 | **Open** | No `throttle_scope` on any auth view; `config/settings/` still has no production module |
+| N-01/N-02 | **Open** | `JWT_SIGNING_KEY` and `TOTP_ENCRYPTION_KEY` keep the silent derivation (`config/settings/base.py:222-224,233`) |
+| N-03 | **Open** | Entrypoints still default to `config.settings.dev` |
+| Hardening: enrollment lock | **Fixed** | `start_enrollment` and `confirm_enrollment` now refuse a locked account (FR-01-14) |
+| Hardening: audit log | **Improved beyond the note** | Migration `0004` also rejects `TRUNCATE`, which row triggers never fire on |
+
+The refresh-cookie race this push fixes is a different one from F-02: it is about two tabs
+erasing a shared cookie, not about a termination being overwritten.
+
 ## Hardening notes (not findings)
 
 `NUM_PROXIES` is configured but never read, so audited `source_ip` is the proxy address;
 bcrypt truncates at 72 bytes while login accepts 128 characters; `/api/docs/` is public in
-every environment; `confirm_enrollment` does not consult the account lock the way
-`verify_code` does.
+every environment.
 
 ## What was not done
 
