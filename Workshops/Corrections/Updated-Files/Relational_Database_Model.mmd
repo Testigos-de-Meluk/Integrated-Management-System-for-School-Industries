@@ -151,6 +151,9 @@ erDiagram
         varchar requester_full_name "RequesterContact"
         varchar requester_email "RequesterContact"
         varchar requester_phone "RequesterContact"
+        varchar requester_institution "Institution the furniture is for (optional)"
+        varchar requester_tax_id "NIT of the institution (optional)"
+        varchar access_key "Secret that authorizes the PDF and e-mail of the quotation"
         decimal estimated_total_min "PriceRange.min"
         decimal estimated_total_max "PriceRange.max"
         decimal final_total "Set on approval = sum(final_unit_price * quantity)"
@@ -176,6 +179,7 @@ erDiagram
         decimal unit_price_min "Estimated range"
         decimal unit_price_max "Estimated range"
         decimal final_unit_price "Required to approve; feeds future estimations"
+        varchar price_source "HISTORY or AI; empty when there is no estimate"
     }
 
     WORK_ORDER {
