@@ -8,6 +8,7 @@ Some providers route by conversation and require a session header (OpenCode Go:
 independent conversation, so each one sends a new ``ses_<random>`` id.
 """
 
+import http.client
 import json
 import logging
 import re
@@ -104,7 +105,9 @@ class OpenAICompatibleLanguageModel(LanguageModel):
             # error message explains the cause (unknown model, privacy settings, rate limit…).
             logger.warning("AI provider answered HTTP %s: %s", error.code, _provider_message(error))
             raise LanguageModelError(f"AI provider answered HTTP {error.code}.") from error
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
+        except (OSError, json.JSONDecodeError, http.client.HTTPException) as error:
+            # OSError already covers URLError, TimeoutError and ConnectionResetError; the
+            # uncaught ones surfaced as 500 instead of "AI provider unreachable".
             logger.warning("AI provider unreachable: %s", type(error).__name__)
             raise LanguageModelError("AI provider unreachable.") from error
 
