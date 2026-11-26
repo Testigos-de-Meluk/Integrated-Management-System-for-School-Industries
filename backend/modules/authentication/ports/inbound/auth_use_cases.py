@@ -94,7 +94,7 @@ class AuthUseCases(ABC):
     @abstractmethod
     def confirm_enrollment(
         self, pre_auth_token: str, code: str, source_ip: str | None
-    ) -> SessionTokens:
+    ) -> Outcome[SessionTokens]:
         """Confirms the link with a code from the app and opens the session."""
 
     @abstractmethod

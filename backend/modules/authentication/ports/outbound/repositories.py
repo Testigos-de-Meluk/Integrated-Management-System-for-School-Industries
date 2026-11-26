@@ -13,7 +13,9 @@ class SessionRepository(ABC):
     def add(self, session: Session) -> None: ...
 
     @abstractmethod
-    def update(self, session: Session) -> None: ...
+    def update(self, session: Session, *, expected_refresh_token_id: str | None = None) -> bool:
+        """Persists the session. Returns ``False`` if the row no longer matched
+        ``expected_refresh_token_id`` (another request rotated it first)."""
 
     @abstractmethod
     def active_sessions_of(self, user_id: UUID) -> list[Session]: ...

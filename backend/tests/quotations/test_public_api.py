@@ -117,11 +117,12 @@ def test_request_quotation_end_to_end(products, django_capture_on_commit_callbac
     ).exists()
 
     key = quotation["access_key"]
-    pdf = client.get(f"{BASE}quotations/{quotation['id']}/pdf/", {"key": key})
+    pdf = client.post(f"{BASE}quotations/{quotation['id']}/pdf/", {"key": key}, "json")
     assert pdf.status_code == 200 and pdf["Content-Type"] == "application/pdf"
     assert pdf.content.startswith(b"%PDF")
 
-    assert client.get(f"{BASE}quotations/{quotation['id']}/pdf/", {"key": "x"}).status_code == 404
+    bad = client.post(f"{BASE}quotations/{quotation['id']}/pdf/", {"key": "x"}, "json")
+    assert bad.status_code == 404
 
     with django_capture_on_commit_callbacks(execute=True):
         sent = client.post(f"{BASE}quotations/{quotation['id']}/email/", {"key": key}, "json")
@@ -130,6 +131,16 @@ def test_request_quotation_end_to_end(products, django_capture_on_commit_callbac
 
     second = client.post(f"{BASE}quotations/", request_body(products), "json").json()
     assert second["number"].endswith("-0002")
+
+
+def test_non_ascii_access_key_returns_404_not_500(products):
+    """compare_digest with str raises TypeError on non-ASCII: the answer must still be 404."""
+    client = APIClient()
+    quotation = client.post(f"{BASE}quotations/", request_body(products), "json").json()
+
+    response = client.post(f"{BASE}quotations/{quotation['id']}/pdf/", {"key": "á"}, "json")
+
+    assert response.status_code == 404
 
 
 def test_validation_errors(products):

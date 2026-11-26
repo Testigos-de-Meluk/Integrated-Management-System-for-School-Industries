@@ -246,5 +246,13 @@ def test_adapter_errors_log_the_provider_reason(monkeypatch, caplog):
     with pytest.raises(LanguageModelError):
         OpenAICompatibleLanguageModel("https://llm.test", "k", "m").complete_json("s", "u")
     assert "HTTP 403: error code: 1010" in caplog.text
+
+    def reset(request, timeout):
+        raise ConnectionResetError("connection reset by peer")
+
+    monkeypatch.setattr("urllib.request.urlopen", reset)
+    with pytest.raises(LanguageModelError):  # not a 500: the provider dropped the connection
+        OpenAICompatibleLanguageModel("https://llm.test", "k", "m").complete_json("s", "u")
+
     with pytest.raises(LanguageModelError):  # no key configured
         OpenAICompatibleLanguageModel("https://llm.test", "", "m").complete_json("s", "u")

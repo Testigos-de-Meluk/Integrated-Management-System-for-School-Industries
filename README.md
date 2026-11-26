@@ -70,6 +70,23 @@ reload: restart it with `docker compose restart worker beat` after changing task
 
 More details: [`backend/README.md`](backend/README.md) (architecture rules and commands).
 
+## API overview
+
+All routes live under `/api/`. Swagger UI at `/api/docs/`, ReDoc at `/api/redoc/`, health check at
+`/api/health/`.
+
+| Prefix | What it exposes |
+| --- | --- |
+| `/api/auth/` | `login/`, `enrollment/` + `enrollment/confirm/` (first login), `verify/`, `refresh/`, `logout/`, `me/`, `activity/` |
+| `/api/users/` | Account CRUD, roles and permissions |
+| `/api/products/` | Catalog: list, create, edit, activate/deactivate |
+| `/api/customers/` | Customers, `by-tax-id/<tax_id>/`, 360° history, commercial notes |
+| `/api/chatbot/` | Public assistant: `catalog/`, `assistant/`, `proposal/`, `estimate/`, `quotations/`, quotation `pdf/` and `email/` |
+| `/api/quotations/` | Admin review: list, detail, `modify/`, `approve/`, `reject/`, `customer/`, `pdf/` |
+
+`auth/me/` returns the current user and permissions; `auth/activity/` records activity so the
+15-minute inactivity timeout counts real use.
+
 ## Repository Structure
 
 ```

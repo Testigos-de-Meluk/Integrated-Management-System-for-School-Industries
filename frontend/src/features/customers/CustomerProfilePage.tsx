@@ -98,7 +98,11 @@ export function CustomerProfilePage() {
 
       <section className="rounded-lg border border-slate-200 bg-white p-5">
         <h2 className="mb-4 text-lg font-medium">Historial de cotizaciones y órdenes de trabajo</h2>
-        {history.isPending ? (
+        {history.isError ? (
+          <p role="alert" className="text-sm text-red-700">
+            No fue posible cargar el historial. Intente de nuevo.
+          </p>
+        ) : history.isPending ? (
           <p className="text-sm text-slate-500">Cargando historial…</p>
         ) : !history.data || history.data.results.length === 0 ? (
           <p className="text-sm text-slate-500">Este cliente aún no tiene cotizaciones ni órdenes de trabajo.</p>

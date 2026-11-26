@@ -8,7 +8,7 @@ catalog (``ProductCatalog``) and the quotation requests (``QuotationRequests``).
 from uuid import UUID
 
 from django.http import HttpResponse
-from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -147,13 +147,14 @@ class QuotationPdfView(PublicView):
     @extend_schema(
         tags=TAG,
         summary="Download the preliminary quotation as PDF",
-        parameters=[OpenApiParameter("key", str, required=True)],
+        request=AccessKeySerializer,
         responses={(200, "application/pdf"): OpenApiResponse(description="PDF file")},
     )
-    def get(self, request: Request, quotation_id: UUID) -> HttpResponse:
-        query = AccessKeySerializer(data=request.query_params)
-        query.is_valid(raise_exception=True)
-        document = quotation_requests().document(quotation_id, query.validated_data["key"])
+    def post(self, request: Request, quotation_id: UUID) -> HttpResponse:
+        # POST, not GET: the access key in a query string ends up in proxy and server logs.
+        payload = AccessKeySerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        document = quotation_requests().document(quotation_id, payload.validated_data["key"])
         response = HttpResponse(document.content, content_type="application/pdf")
         response["Content-Disposition"] = f'attachment; filename="{document.filename}"'
         return response

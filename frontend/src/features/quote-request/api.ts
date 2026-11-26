@@ -1,7 +1,7 @@
 /** Public virtual assistant API (/api/chatbot/): no account needed. */
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import { api, type Paginated } from "@/shared/api/http";
+import { api, postAnonymousBlob, type Paginated } from "@/shared/api/http";
 
 export type CatalogItem = { id: string; code: string; name: string; unit_of_measure: string };
 
@@ -96,6 +96,10 @@ export const quoteApi = {
     api.postAnonymous<{ sent_to: string }>(`/chatbot/quotations/${quotation.id}/email/`, {
       key: quotation.access_key,
     }),
-  pdfUrl: (quotation: PreliminaryQuotation) =>
-    `/api/chatbot/quotations/${quotation.id}/pdf/?key=${encodeURIComponent(quotation.access_key)}`,
+  pdf: (quotation: PreliminaryQuotation) =>
+    postAnonymousBlob(
+      `/chatbot/quotations/${quotation.id}/pdf/`,
+      { key: quotation.access_key },
+      `${quotation.number}.pdf`,
+    ),
 };

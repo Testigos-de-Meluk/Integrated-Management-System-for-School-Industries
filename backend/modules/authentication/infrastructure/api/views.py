@@ -106,7 +106,9 @@ class EnrollmentConfirmView(PublicAuthView):
             payload.validated_data["code"],
             client_ip(request),
         )
-        return _session_response(tokens)
+        if tokens.error:
+            return error_response(tokens.error)
+        return _session_response(tokens.value)
 
 
 class VerifyCodeView(PublicAuthView):

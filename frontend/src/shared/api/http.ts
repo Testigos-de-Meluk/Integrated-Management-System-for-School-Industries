@@ -160,6 +160,22 @@ export async function downloadFile(path: string, fallbackName: string): Promise<
   if (response.status === 401 && (await refreshSession())) {
     response = await send("GET", path, {});
   }
+  await saveResponse(response, fallbackName);
+}
+
+/**
+ * POST that returns a file. Used when the secret that authorizes the download (e.g. a quotation
+ * access key) must not travel in the URL, where proxy and server logs would keep it.
+ */
+export async function postAnonymousBlob(
+  path: string,
+  body: unknown,
+  fallbackName: string,
+): Promise<void> {
+  await saveResponse(await send("POST", path, { body, anonymous: true }), fallbackName);
+}
+
+async function saveResponse(response: Response, fallbackName: string): Promise<void> {
   if (!response.ok) {
     throw new ApiError(response.status, await response.json().catch(() => null));
   }

@@ -29,19 +29,23 @@ backend/
 
 ## Modules
 
-| Module | URL prefix | Responsibility |
-|---|---|---|
-| `shared_kernel` | — | Common value objects (Money, PriceRange…), audit log, notifications, file storage, pagination, health check |
-| `authentication` | `/api/auth/` | Login, TOTP 2FA, single active session, inactivity timeout, temporary lockout |
-| `user_accounts` | `/api/users/` | User CRUD, fixed roles and permissions (RBAC) |
-| `products` | `/api/products/` | Product catalog (no official prices) |
-| `customers` | `/api/customers/` | Natural persons / legal entities, 360° profile, commercial notes |
-| `chatbot` | `/api/chatbot/` | Hybrid virtual assistant (guided steps + free-text proposals) |
-| `quotations` | `/api/quotations/` | Price-range estimation, PDF, review, approval, rejection |
-| `work_orders` | `/api/work-orders/` | O.T. generation from approved quotations and status lifecycle |
-| `accounting_export` | `/api/accounting-export/` | Processing queue and Siigo Pyme flat-file batches |
-| `backups` | `/api/backups/` | Scheduled full/differential backups, inventory, verified restore |
-| `price_history` | `/api/price-history/` | WhatsApp chat import and review of price samples |
+| Module | URL prefix | Responsibility | Status |
+|---|---|---|---|
+| `shared_kernel` | — | Common value objects (Money, PriceRange…), audit log, notifications, file storage, pagination, health check | Done |
+| `authentication` | `/api/auth/` | Login, TOTP 2FA, single active session, inactivity timeout, temporary lockout | Done |
+| `user_accounts` | `/api/users/` | User CRUD, fixed roles and permissions (RBAC) | Done |
+| `products` | `/api/products/` | Product catalog (no official prices) | Done |
+| `customers` | `/api/customers/` | Natural persons / legal entities, 360° profile, commercial notes | Done |
+| `chatbot` | `/api/chatbot/` | Hybrid virtual assistant (guided steps + free-text proposals) | Done |
+| `quotations` | `/api/quotations/` | Price-range estimation, PDF, review, approval, rejection | Done |
+| `work_orders` | `/api/work-orders/` | O.T. generation from approved quotations and status lifecycle | Skeleton |
+| `accounting_export` | `/api/accounting-export/` | Processing queue and Siigo Pyme flat-file batches | Skeleton |
+| `backups` | `/api/backups/` | Scheduled full/differential backups, inventory, verified restore | Skeleton |
+| `price_history` | `/api/price-history/` | WhatsApp chat import and review of price samples | Skeleton |
+
+A *Skeleton* module only has its package layout, permission and empty `urlpatterns`: it has no
+endpoint yet. `chatbot` exposes the public side of the assistant; the admin review of quotations
+lives in `quotations`.
 
 ## Architecture rules
 

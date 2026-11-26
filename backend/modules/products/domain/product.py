@@ -10,6 +10,7 @@ from enum import StrEnum
 from uuid import UUID, uuid4
 
 from modules.shared_kernel.domain.exceptions import ValidationError
+from modules.shared_kernel.domain.text import REQUIRED, clean_text
 
 from .exceptions import InvalidProductStatusChange
 
@@ -17,8 +18,6 @@ CODE_MAX_LENGTH = 30
 NAME_MAX_LENGTH = 200
 UNIT_MAX_LENGTH = 30
 _CODE_PATTERN = re.compile(r"^[A-Z0-9][A-Z0-9-]*$")
-
-REQUIRED = "Este campo es obligatorio."
 
 
 class ProductStatus(StrEnum):
@@ -40,15 +39,6 @@ def _validate_code(code: str, errors: dict[str, list[str]]) -> None:
         errors["code"] = ["Use solo letras, números y guiones (por ejemplo, SIL-001)."]
 
 
-def _clean_text(value: str, field_name: str, max_length: int, errors: dict) -> str:
-    cleaned = " ".join((value or "").split())
-    if not cleaned:
-        errors[field_name] = [REQUIRED]
-    elif len(cleaned) > max_length:
-        errors[field_name] = [f"Máximo {max_length} caracteres."]
-    return cleaned
-
-
 @dataclass(eq=False, slots=True)
 class Product:
     code: str
@@ -65,8 +55,8 @@ class Product:
         errors: dict[str, list[str]] = {}
         normalized_code = normalize_code(code)
         _validate_code(normalized_code, errors)
-        clean_name = _clean_text(name, "name", NAME_MAX_LENGTH, errors)
-        clean_unit = _clean_text(unit_of_measure, "unit_of_measure", UNIT_MAX_LENGTH, errors)
+        clean_name = clean_text(name, "name", NAME_MAX_LENGTH, errors)
+        clean_unit = clean_text(unit_of_measure, "unit_of_measure", UNIT_MAX_LENGTH, errors)
         if errors:
             raise ValidationError(errors)
         return cls(code=normalized_code, name=clean_name, unit_of_measure=clean_unit)
@@ -76,8 +66,8 @@ class Product:
     def update_details(self, name: str, unit_of_measure: str) -> None:
         """Only name and unit can change; the code is immutable (FR-02-03)."""
         errors: dict[str, list[str]] = {}
-        clean_name = _clean_text(name, "name", NAME_MAX_LENGTH, errors)
-        clean_unit = _clean_text(unit_of_measure, "unit_of_measure", UNIT_MAX_LENGTH, errors)
+        clean_name = clean_text(name, "name", NAME_MAX_LENGTH, errors)
+        clean_unit = clean_text(unit_of_measure, "unit_of_measure", UNIT_MAX_LENGTH, errors)
         if errors:
             raise ValidationError(errors)
         self.name = clean_name

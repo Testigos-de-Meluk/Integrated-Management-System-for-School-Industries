@@ -295,7 +295,10 @@ function EnrollStep({
       onSuccess(await authApi.confirmEnrollment(preAuthToken, code));
     } catch (error) {
       setCode("");
-      if (error instanceof ApiError && error.code === "PRE_AUTH_EXPIRED") {
+      if (
+        error instanceof ApiError &&
+        (error.code === "PRE_AUTH_EXPIRED" || error.code === "ENROLLMENT_EXPIRED")
+      ) {
         onRestart(error.message);
       } else {
         onError(messageOf(error));

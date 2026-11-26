@@ -255,7 +255,11 @@ class QuotationRequestService(QuotationRequests):
 
     def _get_with_key(self, quotation_id: UUID, access_key: str) -> Quotation:
         quotation = self._repository.get(quotation_id)
-        if quotation is None or not secrets.compare_digest(quotation.access_key, access_key or ""):
+        # Bytes, not str: compare_digest rejects non-ASCII str and would turn a bad key into 500.
+        # "replace" keeps a lone surrogate (never valid UTF-8) from raising UnicodeEncodeError.
+        expected = quotation.access_key.encode("utf-8") if quotation else b""
+        received = (access_key or "").encode("utf-8", "replace")
+        if quotation is None or not secrets.compare_digest(expected, received):
             raise QuotationNotFound()  # same answer: do not reveal which quotations exist
         return quotation
 
