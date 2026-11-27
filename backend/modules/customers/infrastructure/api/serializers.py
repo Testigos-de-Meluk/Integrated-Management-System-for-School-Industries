@@ -8,6 +8,7 @@ from modules.customers.ports.inbound.customer_use_cases import (
     CUSTOMER_STATUSES,
     CUSTOMER_TYPES,
     EMAIL_MAX_LENGTH,
+    HISTORY_TYPES,
     NAME_MAX_LENGTH,
     NOTE_MAX_LENGTH,
     PHONE_MAX_LENGTH,
@@ -63,6 +64,7 @@ class CustomerUpdateSerializer(_EditableFields):
 
 
 class HistoryEntrySerializer(serializers.Serializer):
+    id = serializers.UUIDField()
     document_type = serializers.ChoiceField(choices=["QUOTATION", "WORK_ORDER"])
     reference = serializers.CharField()
     date = serializers.DateTimeField()
@@ -70,6 +72,10 @@ class HistoryEntrySerializer(serializers.Serializer):
 
 
 HistoryPageSerializer = page_serializer("CustomerHistoryPage", HistoryEntrySerializer)
+
+
+class HistoryQuerySerializer(PageQuerySerializer):
+    type = serializers.ChoiceField(choices=list(HISTORY_TYPES), required=False, default="QUOTATION")
 
 
 class NoteSerializer(serializers.Serializer):

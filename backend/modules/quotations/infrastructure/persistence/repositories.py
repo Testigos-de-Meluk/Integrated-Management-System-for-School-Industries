@@ -1,6 +1,6 @@
 """PostgreSQL adapters of the Quotations module."""
 
-from datetime import date, datetime
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -23,7 +23,6 @@ from modules.quotations.infrastructure.models import (
 )
 from modules.quotations.ports.inbound.quotation_review import QuotationFilters
 from modules.quotations.ports.outbound.ports import (
-    DispatchDateEstimator,
     PriceHistory,
     PriceSample,
     QuotationNumberGenerator,
@@ -270,12 +269,3 @@ class DjangoPriceHistory(PriceHistory):
             if len(samples) == limit:
                 break
         return list(samples.values())
-
-
-class NoHistoryDispatchDateEstimator(DispatchDateEstimator):
-    """TEMPORARY strategy: the median of real dispatch times needs work orders with their actual
-    dispatch date (roadmap step 5). Until then there is never enough history (FR-02-06), so the
-    Administrador enters the date manually."""
-
-    def suggest(self, items: list[tuple[UUID, int]], today: date) -> date | None:
-        return None

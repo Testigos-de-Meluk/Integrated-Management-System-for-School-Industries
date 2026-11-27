@@ -35,6 +35,7 @@ from modules.quotations.ports.outbound.ports import (
     QuotationRepository,
 )
 from modules.shared_kernel.domain.audit import ActorType, AuditAction, AuditRecord
+from modules.shared_kernel.domain.document_numbers import business_date
 from modules.shared_kernel.domain.exceptions import ServiceUnavailableError, ValidationError
 from modules.shared_kernel.domain.money import PriceRange
 from modules.shared_kernel.domain.notifications import Attachment, EmailMessage
@@ -174,7 +175,7 @@ class QuotationRequestService(QuotationRequests):
             now=now,
             access_key=secrets.token_urlsafe(24),
             suggested_dispatch_date=self._dispatch.suggest(
-                [(i.product_id, i.quantity) for i in lines], now.date()
+                [(i.product_id, i.quantity) for i in lines], business_date(now)
             ),
             validity_days=self._validity_days,
         )

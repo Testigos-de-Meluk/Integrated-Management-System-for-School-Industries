@@ -69,6 +69,19 @@ class MemoryWorkOrders(WorkOrderRepository):
     def quotations_with_active_order(self):
         return frozenset(o.quotation_id for o in self.items.values() if o.is_active)
 
+    def reconciled_since(self, dispatched_since, product_ids):
+        return [
+            o
+            for o in self.items.values()
+            if o.status.value == "RECONCILED"
+            and o.actual_dispatch_date >= dispatched_since
+            and any(i.product_id in product_ids for i in o.items)
+        ]
+
+    def for_customer(self, customer_id, page_request):
+        found = [o for o in self.items.values() if o.customer.id == customer_id]
+        return Page(found, len(found), page_request)
+
 
 class Numbers(WorkOrderNumberGenerator):
     def __init__(self):

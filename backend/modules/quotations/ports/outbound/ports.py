@@ -81,6 +81,25 @@ class PriceEstimator(ABC):
         Products left out have no estimate: "Precio por confirmar"."""
 
 
+@dataclass(frozen=True, slots=True)
+class DispatchLeadTime:
+    """A dispatched product line: approved on one date, really dispatched on another."""
+
+    product_id: UUID
+    quantity: int
+    approved_on: date
+    dispatched_on: date
+
+
+class DispatchSamples(ABC):
+    """Real dispatches of the past (reconciled work orders), for the median of FR-02-06."""
+
+    @abstractmethod
+    def lead_times(
+        self, product_ids: list[UUID], dispatched_since: date
+    ) -> list[DispatchLeadTime]: ...
+
+
 class DispatchDateEstimator(ABC):
     """Strategy (NFR-05-01): suggested dispatch date from historical medians (FR-02-06)."""
 

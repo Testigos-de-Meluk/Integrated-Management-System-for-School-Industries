@@ -159,8 +159,8 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
   `products.ProductCatalog` inbound ports. Prices are `PriceRange` (whole COP, `Decimal`); a line
   without history is `None` = "Precio por confirmar" (user decision). Estimator =
   `FallbackPriceEstimator` (see AI features below), statistical = interquartile range of APPROVED
-  final unit prices in the last 365 days. Dispatch date = `NoHistoryDispatchDateEstimator`
-  until step 5. Quotation numbers `COT-YYYYMMDD-NNNNN` (see Step 5 decisions; migration
+  final unit prices in the last 365 days. Dispatch date = `MedianDispatchDateEstimator`
+  (5b, see below). Quotation numbers `COT-YYYYMMDD-NNNNN` (see Step 5 decisions; migration
   `quotations.0004` renumbered the old `COT-<year>-<0001>` ones). Validity 15 days.
   Data-processing consent (Law 1581) required. PDFs with ReportLab (escape user text). The
   requester gets an `access_key` to download/email only their quotation: it always travels in the
@@ -237,6 +237,20 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
   `select_for_update`. Frontend: `/ordenes-trabajo` (list + "Generar O.T." dialog) and
   `/ordenes-trabajo/:id` (edit while Pendiente, annul with the Siigo warning, reconcile);
   `ProductPicker` (products) and `ReasonDialog` (shared/ui) are shared with the quotation review.
+- **Dispatch date and 360 history (5b, done):** business days = Monday–Friday minus Colombian
+  holidays (`shared_kernel.domain.business_days`, computed in Python incl. Ley Emiliani and Easter;
+  `GET /api/calendar/holidays/?year=` for the screens). `MedianDispatchDateEstimator` (quotations,
+  Strategy) reads real dispatches through `work_orders.DispatchHistory` (adapter
+  `WorkOrderDispatchSamples`): RECONCILED, non-annulled O.T.s of the last 365 days, product and
+  quantity from the O.T., lead time in business days from `quotation_approved_at` (snapshot on the
+  O.T.) to `actual_dispatch_date`; median per product and bucket (1–10, 11–50, 51–100, >100),
+  rounded up; ≥ 3 samples for EVERY item or no suggestion; largest median wins; suggested date =
+  today + N business days. Recomputed in the review (`suggested_dispatch_date` in the detail; using
+  it keeps the source SUGGESTED). A non-business dispatch or agreed date only shows a warning
+  (`NonBusinessDayWarning`). The customer 360 history has two tabs (`?type=QUOTATION|WORK_ORDER`,
+  `ModulesCommercialHistory` adapter over `CustomerQuotations` and `work_orders.CustomerWorkOrders`);
+  links only where the user has the permission. Quotations and customers import the work orders
+  composition root lazily (work orders imports both at module level).
 - Patterns required by NFR-05-01: Factory (`Entity.register`), Singleton (`lru_cache`
   composition roots, `event_bus`), Observer (events), Strategy (price estimators, dispatch-date
   estimator).
@@ -250,7 +264,7 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
 | 2 | Authentication + user accounts + audit (backend and frontend) | Done |
 | 3 | Customers and commercial notes | Done |
 | 4 | Chatbot (hybrid assistant) + Quotations | Done (4a public assistant, 4b admin review, 4c AI: free text + AI price estimate) |
-| 5 | Siigo export queue + Work orders | **In progress**: 5a work orders + numbering done; next 5b (dispatch median + 360 history), 5c (queue), 5d (Siigo file) |
+| 5 | Siigo export queue + Work orders | **In progress**: 5a work orders + numbering and 5b dispatch median + 360 history done; next 5c (queue), 5d (Siigo file) |
 | 6 | Backups + WhatsApp price history import | Pending |
 
 The first push/PR happens when the user decides (first release with several modules working).
@@ -283,9 +297,10 @@ The first push/PR happens when the user decides (first release with several modu
 - Audit-log screen: a `LOGIN_FAILED` / `ACCOUNT_LOCKED` row with a USER actor means "this account
   was targeted", not that its owner acted; make that clear in the UI.
 - Frontend bundle > 500 kB: split by route later.
-- **Customer history** on the 360 profile lists quotations (`QuotationsCommercialHistory`); merge
-  work orders into it in step 5b. The export queue subscribes to `WorkOrderGenerated` (5c), not to
-  `QuotationApproved` (which keeps no subscriber).
+- The export queue subscribes to `WorkOrderGenerated` (5c), not to `QuotationApproved` (which keeps
+  no subscriber).
+- **Dispatch-date estimation options** (later; corrections open item 8): let the user choose the
+  history window (fixed at 365 days today) and evaluate estimators besides the median.
 
 ## Environment notes
 

@@ -103,6 +103,9 @@ class WorkOrder:
     status: WorkOrderStatus = WorkOrderStatus.PENDING
     actual_dispatch_date: date | None = None
     cancellation_reason: str = ""
+    #: Snapshot of the source quotation's approval: the dispatch lead time is measured from it
+    #: (FR-02-06). ``None`` only for O.T.s generated before step 5b.
+    quotation_approved_at: datetime | None = None
     id: UUID = field(default_factory=uuid4)
 
     # --- Factory (FR-02-20) -------------------------------------------------------------------
@@ -121,12 +124,14 @@ class WorkOrder:
         now: datetime,
         by_id: UUID | None,
         by_name: str,
+        quotation_approved_at: datetime | None = None,
     ) -> "WorkOrder":
         validate_items(items)
         return cls(
             number=number,
             quotation_id=quotation_id,
             quotation_number=quotation_number,
+            quotation_approved_at=quotation_approved_at,
             customer=customer,
             items=items,
             agreed_delivery_date=_validate_agreed_date(agreed_delivery_date, today),

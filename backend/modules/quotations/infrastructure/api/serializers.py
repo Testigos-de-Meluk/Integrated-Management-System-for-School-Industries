@@ -158,3 +158,4 @@ class QuotationDetailSerializer(serializers.Serializer):
     approved_by_name = serializers.CharField(allow_blank=True)
     customer = LinkedCustomerSerializer(allow_null=True)
     suggested_customer = LinkedCustomerSerializer(allow_null=True)
+    suggested_dispatch_date = serializers.DateField(allow_null=True)

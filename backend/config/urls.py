@@ -3,7 +3,7 @@
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
-from modules.shared_kernel.infrastructure.api.views import health
+from modules.shared_kernel.infrastructure.api.views import health, holidays
 
 MODULE_ROUTES = {
     "auth": "authentication",
@@ -20,6 +20,7 @@ MODULE_ROUTES = {
 
 urlpatterns = [
     path("api/health/", health, name="health"),
+    path("api/calendar/holidays/", holidays, name="holidays"),
     # API documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),

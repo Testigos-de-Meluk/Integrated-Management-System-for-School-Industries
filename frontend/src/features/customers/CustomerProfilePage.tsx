@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
 
-import { QUOTATION_STATUS_LABELS, type QuotationStatus } from "@/features/quotations/api";
 import { ApiError } from "@/shared/api/http";
 import { Button } from "@/shared/ui/Button";
 import { ConfirmDialog } from "@/shared/ui/ConfirmDialog";
@@ -11,21 +10,17 @@ import {
   STATUS_LABELS,
   TYPE_LABELS,
   useCustomerByTaxId,
-  useCustomerHistory,
   useCustomerStatus,
 } from "./api";
 import { CustomerFormModal } from "./CustomerFormModal";
+import { HistorySection } from "./HistorySection";
 import { NotesSection } from "./NotesSection";
 
-const DOCUMENT_LABELS = { QUOTATION: "Cotización", WORK_ORDER: "Orden de trabajo" } as const;
-const dateFormat = new Intl.DateTimeFormat("es-CO", { dateStyle: "medium", timeZone: "America/Bogota" });
 
 /** Unified 360° profile, identified by NIT / document number (FR-02-08, US 2.19 … US 2.24). */
 export function CustomerProfilePage() {
   const { taxId = "" } = useParams();
   const { data: customer, isPending, error } = useCustomerByTaxId(taxId);
-  const [historyPage, setHistoryPage] = useState(1);
-  const history = useCustomerHistory(customer?.id, historyPage);
   const changeStatus = useCustomerStatus();
   const [editing, setEditing] = useState(false);
   const [confirmStatus, setConfirmStatus] = useState(false);
@@ -96,56 +91,7 @@ export function CustomerProfilePage() {
         </section>
       </div>
 
-      <section className="rounded-lg border border-slate-200 bg-white p-5">
-        <h2 className="mb-4 text-lg font-medium">Historial de cotizaciones y órdenes de trabajo</h2>
-        {history.isError ? (
-          <p role="alert" className="text-sm text-red-700">
-            No fue posible cargar el historial. Intente de nuevo.
-          </p>
-        ) : history.isPending ? (
-          <p className="text-sm text-slate-500">Cargando historial…</p>
-        ) : !history.data || history.data.results.length === 0 ? (
-          <p className="text-sm text-slate-500">Este cliente aún no tiene cotizaciones ni órdenes de trabajo.</p>
-        ) : (
-          <>
-            <table className="w-full text-left text-sm">
-              <thead className="text-xs text-slate-500 uppercase">
-                <tr>
-                  <th className="py-2">Documento</th>
-                  <th className="py-2">Referencia</th>
-                  <th className="py-2">Fecha</th>
-                  <th className="py-2">Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.data.results.map((entry) => (
-                  <tr key={`${entry.document_type}-${entry.reference}`} className="border-t border-slate-100">
-                    <td className="py-2">{DOCUMENT_LABELS[entry.document_type]}</td>
-                    <td className="py-2 font-mono text-xs">{entry.reference}</td>
-                    <td className="py-2">{dateFormat.format(new Date(entry.date))}</td>
-                    <td className="py-2">
-                      {entry.document_type === "QUOTATION"
-                        ? (QUOTATION_STATUS_LABELS[entry.status as QuotationStatus] ?? entry.status)
-                        : entry.status}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {history.data.total_pages > 1 && (
-              <div className="mt-3 flex justify-end gap-2 text-sm">
-                <Button variant="secondary" disabled={historyPage <= 1} onClick={() => setHistoryPage(historyPage - 1)}>
-                  Anterior
-                </Button>
-                <Button variant="secondary" disabled={historyPage >= history.data.total_pages}
-                  onClick={() => setHistoryPage(historyPage + 1)}>
-                  Siguiente
-                </Button>
-              </div>
-            )}
-          </>
-        )}
-      </section>
+      <HistorySection customerId={customer.id} />
 
       <NotesSection customerId={customer.id} readOnly={!customer.is_active} />
 

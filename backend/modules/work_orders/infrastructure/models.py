@@ -22,6 +22,9 @@ class WorkOrderModel(models.Model):
     order_number = models.CharField(max_length=20, unique=True)
     quotation_id = models.UUIDField()  # quotations module
     quotation_number = models.CharField(max_length=20)  # snapshot
+    # Snapshot: the dispatch lead time is measured from the approval (FR-02-06). Null only for
+    # O.T.s generated before step 5b (they are left out of the median).
+    quotation_approved_at = models.DateTimeField(null=True, blank=True)
     customer_id = models.UUIDField()  # customers module
     customer_tax_id = models.CharField(max_length=20)  # snapshot
     customer_name = models.CharField(max_length=200)  # snapshot

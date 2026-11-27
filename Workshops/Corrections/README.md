@@ -145,12 +145,22 @@ quotation and its PDF are the only results.
 
 **FR-02-06 (changed) — Suggested dispatch date.**
 The suggestion uses **only the historical median** (no buffers). It is calculated as follows:
-- *Lead time* of a past order = `work_order.actual_dispatch_date − quotation.approved_at`.
+- *Lead time* of a past order = **business days** from `quotation.approved_at` to
+  `work_order.actual_dispatch_date`. Business days are **Monday to Friday, minus Colombian public holidays**
+  (fixed ones, the ones moved to Monday by Law 51 of 1983 and the ones tied to Easter).
+- Only **reconciled** work orders count ("Conciliada", with a real dispatch date), never annulled ones. Product
+  and quantity are taken from the **work order** (what was actually dispatched).
+- Only dispatches of the **last 365 days** count.
 - The median is computed per product and per quantity bucket. The buckets are **1–10, 11–50, 51–100 and more
-  than 100** units.
-- At least **3 samples** are required. Otherwise the message "Sin datos históricos suficientes para estimar la
-  fecha de despacho" is shown and the Administrador must enter the date manually.
+  than 100** units. With an even number of samples, the mean of the two middle ones is **rounded up**.
+- At least **3 samples** are required for **every** product of the quotation. Otherwise the message "Sin datos
+  históricos suficientes para estimar la fecha de despacho" is shown and the Administrador must enter the date
+  manually (taking the largest median of the other products would underestimate the date).
 - For a multi-product quotation, the suggested date is the largest of the per-item medians.
+- Suggested date = the day it is calculated + that many business days. It is calculated when the quotation is
+  requested and **again when the Administrador opens it for review** (there may be more history by then).
+- A dispatch date (or an O.T. agreed delivery date) that is not a business day only shows a **warning**; it is
+  not blocked. The Administrador decides whether to adjust it.
 
 The Administrador confirms or adjusts the date while reviewing the quotation. The Operador sees it on the O.T.
 
@@ -208,7 +218,7 @@ samples keep no personal data (Law 1581 of 2012).
 | **US 1.22** | **New** | *As a system user, I want my account to be locked temporarily after repeated failed attempts so that nobody can guess my credentials.* Criteria: (1) 3 consecutive failures lock the account for 15 minutes; (2) during the lock, login is denied with the lockout message; (3) after 15 minutes login works again; (4) a successful login resets the counter; (5) the lock is recorded in the audit log. |
 | **US 1.23** | **New** | *As an Administrador, I want to unlock a locked account so that an employee can work again without waiting.* Criteria: (1) user management shows locked accounts; (2) unlocking resets the counter and `locked_until`; (3) the action is audited; (4) the Operador cannot unlock ("No tiene permisos para realizar esta acción"). |
 | US 2.7 | **Changed** | Criterion 2.7.3 also accepts products proposed from free text, which must be confirmed by the customer (see US 2.41). |
-| US 2.11 | **Changed** | Criterion 2.11.2: "real delivery times" = `actual_dispatch_date − approved_at`, using the buckets and minimum samples of FR-02-06. |
+| US 2.11 | **Changed** | Criterion 2.11.2: "real delivery times" = business days from `approved_at` to `actual_dispatch_date` (FR-02-06), using the buckets and minimum samples of FR-02-06. |
 | US 2.18 | **Changed** | New criterion 2.18.6: an inactive customer can be reactivated; it becomes available again for new quotations and orders. |
 | US 2.23 | **Changed** | Only the **author** of a note can edit it (other users see it read-only). Deleting remains allowed to any user with permission (US 2.24). |
 | US 2.27 | **Changed** | New criterion 2.27.7: approval is blocked until every item has a final unit price and the quotation has a dispatch date. |
@@ -276,7 +286,7 @@ of `WORK_ORDER_MANAGE`; it does not grant `QUOTATION_MANAGE`.
 | RN-M2-02 | Kept | The final price is stored per item (`final_unit_price`). |
 | RN-M2-03 | **Changed** | Hybrid guided assistant (FR-02-05). Free text is allowed only as an optional description that the AI turns into a proposal the customer must confirm. Emails and phone/document numbers typed in the text are removed before it is sent to the AI provider. The option is hidden when no AI provider is configured. |
 | RN-M2-04 | **Changed** | A rejected quotation stays "Rechazada" (final); it does **not** revert to a preliminary status. |
-| RN-M2-05 | **Changed** | Median only, no buffers for absenteeism or material shortages. |
+| RN-M2-05 | **Changed** | Median only, in **business days** (FR-02-06): the extra days that the original rule added for absent employees or material shortages are removed. |
 | RN-M2-06 | **Changed** | Unique number (`OT-YYYYMMDD-NNNNN`) and sequential cycle kept; the step to "Registrada en Siigo" is done by the export. Manufacturing specifications, unit values, VAT and advance payments removed. Each O.T. comes from exactly one approved quotation, which has at most one active (not annulled) O.T. |
 | RN-M2-07 | **Changed** | Batch export files are generated from **work orders** by the Operador; generating the file moves them to "Registrada en Siigo". |
 | RN-M2-08 | **Changed** | Risk concentration alert and the VAT sentence removed. The 360-degree profile is kept. |
@@ -306,7 +316,7 @@ The class diagram file is not regenerated. These are the changes to apply when i
 | 8 · `ChatSession` | Transient (not persisted). `handleMessage(text)` is replaced by `proposeItemsFromText(text, assistant): List<RequestedItem>`. |
 | 8 · `ConversationalAssistant` | Single responsibility: free text → proposed items (active catalog only). |
 | 8 · `PriceEstimator` | Uses a Strategy over price-sample sources: `ApprovedQuotationSamples`, then `WhatsAppSamples` as fallback. |
-| 9 · `WorkOrder` | Add `quotation: Quotation`, `actualDispatchDate`, `cancellationReason`. `orderNumber` is `OT-YYYYMMDD-NNNNN`. `create(...)` becomes `generateFrom(quotation, customer, by, numbers, audit)`. `update(...)` only in `PENDING`. `markRegisteredInSiigo()` is called by the export (not by the user). `reconcile(actualDispatchDate)` from `REGISTERED_IN_SIIGO`. `cancel(reason)` from any status except `CANCELLED`. No prices. |
+| 9 · `WorkOrder` | Add `quotation: Quotation`, `quotationApprovedAt` (snapshot, origin of the lead time), `actualDispatchDate`, `cancellationReason`. `orderNumber` is `OT-YYYYMMDD-NNNNN`. `create(...)` becomes `generateFrom(quotation, customer, by, numbers, audit)`. `update(...)` only in `PENDING`. `markRegisteredInSiigo()` is called by the export (not by the user). `reconcile(actualDispatchDate)` from `REGISTERED_IN_SIIGO`. `cancel(reason)` from any status except `CANCELLED`. No prices. |
 | 10 · Export queue | The queue holds **work orders**: `ProcessingQueueEntry.workOrder: WorkOrder`, `QueueFilter.orderId` is the O.T. number, `SiigoLineFormatter.format(WorkOrder)`. `ExportBatch.generate()` marks each O.T. as `REGISTERED_IN_SIIGO`. |
 | 11 · `AuditEntry` | Fields as in the new DB model. `AuditAction` adds `DELETED, LOGIN, LOGIN_FAILED, ACCOUNT_LOCKED, LOGOUT, BACKUP, RESTORED`. Add `ActorType {USER, SYSTEM, ANONYMOUS}` and `OperationResult {SUCCESS, FAILURE}`. |
 | New page · Price history import | `PriceImportBatch`, `HistoricalPriceSample`, port `PriceSampleExtractor` (DeepSeek adapter), `PriceSampleRepository`. |
@@ -330,6 +340,8 @@ PostgreSQL as the single database.
 | Price history import module | **Added:** controller, `PriceHistoryImportService`, ports `PriceSampleExtractor` and `PriceSampleRepository`, adapter `DeepSeekPriceSampleExtractor`. |
 | Isolated restore environment (sandbox) | **Missing adapter**, see [Open items](#7-open-items). |
 | Clients | The web clients are a React SPA (see [6.2](#62-frontend)). |
+| Dispatch history | The quotations module reads real dispatches through the work orders inbound port `DispatchHistory` (port `DispatchSamples` in quotations); `MedianDispatchDateEstimator` is the Strategy of FR-02-06. Business days and Colombian holidays live in the shared kernel (`/api/calendar/holidays/` for the screens). |
+| Customer 360 history | The customers module reads quotations (`CustomerQuotations`) and work orders (`CustomerWorkOrders`) through inbound ports; the profile shows them in two tabs, each paginated. |
 | Work orders → export queue | **Observer:** generating an O.T. publishes `WorkOrderGenerated`; the accounting export module subscribes and enqueues it. Exporting calls the work orders module (inbound port) to move the O.T.s to "Registrada en Siigo". |
 
 > **Why `SessionRepository`?** FR-01-05 (one active session) and FR-01-06 (15-minute inactivity) cannot be
@@ -367,7 +379,7 @@ The corrected model is in [`Updated-Files/Relational_Database_Model.mmd`](Update
 | `COMMERCIAL_NOTE` | New `updated_by`. |
 | `QUOTATION` | New `quotation_number` (`COT-YYYYMMDD-NNNNN`), `final_total`, `approved_at`, `approved_by` (plus an `approved_by_name` snapshot). The stored estimated and final totals let the review tray filter by amount (US 2.26.4). |
 | `QUOTATION_ITEM` | New `final_unit_price`. |
-| `WORK_ORDER` | `order_number` becomes `varchar` `OT-YYYYMMDD-NNNNN`. New `quotation_id` (FK, not null; **unique among non-cancelled O.T.s**, a partial unique index) and `actual_dispatch_date`. |
+| `WORK_ORDER` | `order_number` becomes `varchar` `OT-YYYYMMDD-NNNNN`. New `quotation_approved_at` (snapshot used for the dispatch lead time). New `quotation_id` (FK, not null; **unique among non-cancelled O.T.s**, a partial unique index) and `actual_dispatch_date`. |
 | `PROCESSING_QUEUE_ENTRY` | `quotation_id` → **`work_order_id`** (FK, unique). |
 | Numbering | One global counter per document type (quotation, work order) that never restarts. |
 | `SESSION` | `access_token_id` is not stored (the access token carries the session id). Termination reasons add `PASSWORD_CHANGED` and `TOKEN_REUSE` (replayed refresh token). |
@@ -464,4 +476,5 @@ Hosting is not a requirement this semester.
 | 4 | Dashboard, weekly report and audit log screens. | During development |
 | 5 | Confirm whether the AI provider can read screenshots for WhatsApp import; if not, use OCR before extraction or accept `.txt` only. | Before implementing FR-02-24 |
 | 6 | Postman collection for the API (can be imported from the OpenAPI schema at `/api/schema/`). | Later |
+| 8 | Dispatch-date estimation options: let the user choose the history window (today fixed at 365 days) and evaluate other estimators besides the median (e.g. percentiles, weighting recent dispatches). | Later |
 | 7 | Production configuration: a settings module that refuses to start without `JWT_SIGNING_KEY` / `TOTP_ENCRYPTION_KEY`, with `DEBUG` off, the refresh cookie `Secure` and `/api/docs/` hidden; and the non-owner database role of NFR-08-01 (security audit 2026-11-26, N-01…N-03). | Before any real deployment |

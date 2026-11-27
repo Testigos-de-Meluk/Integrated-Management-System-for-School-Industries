@@ -8,6 +8,7 @@ import { formatCOP, formatDateOnly, formatRange } from "@/shared/format";
 import { Button } from "@/shared/ui/Button";
 import { ConfirmDialog } from "@/shared/ui/ConfirmDialog";
 import { ReasonDialog } from "@/shared/ui/ReasonDialog";
+import { NonBusinessDayWarning } from "@/shared/calendar/businessDays";
 
 import {
   downloadQuotationPdf,
@@ -343,8 +344,19 @@ function Review({ detail, onSaved }: { detail: QuotationDetail; onSaved: () => v
               ? "Sugerida según tiempos históricos."
               : detail.estimated_dispatch_date
                 ? "Ingresada manualmente."
-                : "Sin datos históricos suficientes: ingrésela manualmente."}
+                : "Sin datos históricos suficientes para estimar la fecha de despacho: ingrésela manualmente."}
           </p>
+          {editable && detail.suggested_dispatch_date && detail.suggested_dispatch_date !== dispatchDate && (
+            <div className="mt-2 rounded-md bg-sky-50 p-2 text-xs text-sky-900">
+              Con el historial actual se sugiere el{" "}
+              <strong>{formatDateOnly(detail.suggested_dispatch_date)}</strong> (mediana en días hábiles).{" "}
+              <button type="button" className="font-medium underline"
+                onClick={() => setDispatchDate(detail.suggested_dispatch_date!)}>
+                Usar esta fecha
+              </button>
+            </div>
+          )}
+          {editable && <NonBusinessDayWarning date={dispatchDate} />}
         </div>
         <div>
           <label htmlFor="terms" className="mb-1 block text-sm font-medium text-slate-700">

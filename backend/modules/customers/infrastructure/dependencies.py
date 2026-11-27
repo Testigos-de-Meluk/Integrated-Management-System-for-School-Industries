@@ -8,20 +8,20 @@ from modules.customers.ports.inbound.customer_directory import CustomerDirectory
 from modules.customers.ports.inbound.customer_use_cases import CustomerUseCases
 from modules.shared_kernel.infrastructure.audit.database_audit_logger import DatabaseAuditLogger
 
-from .persistence.history import QuotationsCommercialHistory
+from .persistence.history import ModulesCommercialHistory
 from .persistence.repositories import DjangoCustomerRepository, DjangoNoteRepository
 
 
 @lru_cache(maxsize=1)
 def customer_use_cases() -> CustomerUseCases:
-    # Imported here: the quotations module also imports this module (customer directory).
+    # Imported here: the quotations and work orders modules also import this module.
     from modules.quotations.infrastructure.dependencies import customer_quotations
+    from modules.work_orders.infrastructure.dependencies import customer_work_orders
 
     return CustomerService(
         customers=DjangoCustomerRepository(),
         notes=DjangoNoteRepository(),
-        # Quotations now; work orders join in step 5.
-        history=QuotationsCommercialHistory(customer_quotations()),
+        history=ModulesCommercialHistory(customer_quotations(), customer_work_orders()),
         audit_logger=DatabaseAuditLogger(),
     )
 

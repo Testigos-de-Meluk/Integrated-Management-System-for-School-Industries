@@ -36,11 +36,15 @@ __all__ = [
     "CustomerFilters",
     "CustomerUseCases",
     "CustomerView",
+    "HISTORY_TYPES",
     "HistoryEntryView",
     "NoteView",
     "RegisterCustomerCommand",
     "UpdateCustomerCommand",
 ]
+
+#: The two tabs of the 360 history (step 5b decision).
+HISTORY_TYPES: tuple[str, ...] = ("QUOTATION", "WORK_ORDER")
 
 # --- Input DTOs -------------------------------------------------------------------------------
 
@@ -98,6 +102,7 @@ class CustomerView:
 class HistoryEntryView:
     """One quotation or work order of the customer (US 2.20)."""
 
+    id: UUID
     document_type: str  # "QUOTATION" | "WORK_ORDER"
     reference: str
     date: datetime
@@ -148,9 +153,9 @@ class CustomerUseCases(ABC):
 
     @abstractmethod
     def customer_history(
-        self, actor: Actor, customer_id: UUID, page_request: PageRequest
+        self, actor: Actor, customer_id: UUID, document_type: str, page_request: PageRequest
     ) -> Page[HistoryEntryView]:
-        """Quotations and work orders, newest first (US 2.20)."""
+        """Quotations or work orders (``HISTORY_TYPES``), newest first (US 2.20)."""
 
     @abstractmethod
     def list_notes(

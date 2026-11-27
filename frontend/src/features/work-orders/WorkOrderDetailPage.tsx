@@ -7,6 +7,7 @@ import { formatDateOnly } from "@/shared/format";
 import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
 import { ReasonDialog } from "@/shared/ui/ReasonDialog";
+import { NonBusinessDayWarning } from "@/shared/calendar/businessDays";
 
 import {
   useCancelWorkOrder,
@@ -300,6 +301,7 @@ function Editor({ order, onSaved }: { order: WorkOrderDetail; onSaved: (message:
           <span className="mb-1 block font-medium text-slate-700">Fecha acordada de entrega</span>
           <input type="date" className={inputClass} value={agreed} min={todayIso()}
             onChange={(e) => setAgreed(e.target.value)} />
+          <NonBusinessDayWarning date={agreed} />
         </label>
         {error && <p role="alert" className="rounded-md bg-red-50 p-3 text-red-800">{error}</p>}
         <Button className="w-full" disabled={!canSave || update.isPending} onClick={save}>

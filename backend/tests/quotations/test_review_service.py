@@ -74,6 +74,7 @@ def review(deps):
         catalog=FakeCatalog(),
         customers=FakeCustomers(SCHOOL, CLOSED),
         price_estimator=StatisticalPriceEstimator(FixedHistory()),
+        dispatch_estimator=NoDispatch(),
         documents=FakePdf(),
         notifier=deps["notifier"],
         events=deps["events"],

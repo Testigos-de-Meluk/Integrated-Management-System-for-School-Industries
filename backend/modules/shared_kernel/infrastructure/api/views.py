@@ -9,6 +9,9 @@ from rest_framework.decorators import api_view
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from modules.shared_kernel.domain.business_days import colombian_holidays
+from modules.shared_kernel.infrastructure.api.actor import get_current_actor
+
 
 def _check_database() -> bool:
     try:
@@ -54,3 +57,31 @@ def health(request: Request) -> Response:
         },
         status=200 if healthy else 503,
     )
+
+
+class HolidayQuerySerializer(serializers.Serializer):
+    year = serializers.IntegerField(min_value=2000, max_value=2100)
+
+
+_HOLIDAYS_RESPONSE = inline_serializer(
+    name="HolidaysResponse",
+    fields={
+        "year": serializers.IntegerField(),
+        "holidays": serializers.ListField(child=serializers.DateField()),
+    },
+)
+
+
+@extend_schema(
+    tags=["system"],
+    summary="Colombian public holidays of a year (business days are Monday to Friday minus these)",
+    parameters=[HolidayQuerySerializer],
+    responses=_HOLIDAYS_RESPONSE,
+)
+@api_view(["GET"])
+def holidays(request: Request) -> Response:
+    get_current_actor(request)  # any signed-in user: the screens warn about non-business days
+    query = HolidayQuerySerializer(data=request.query_params)
+    query.is_valid(raise_exception=True)
+    year = query.validated_data["year"]
+    return Response({"year": year, "holidays": sorted(colombian_holidays(year))})

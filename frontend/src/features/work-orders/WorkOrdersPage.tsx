@@ -5,6 +5,7 @@ import { ApiError } from "@/shared/api/http";
 import { formatDateOnly } from "@/shared/format";
 import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
+import { NonBusinessDayWarning } from "@/shared/calendar/businessDays";
 
 import {
   useAvailableQuotations,
@@ -354,6 +355,7 @@ function ConfirmGeneration({
         <span className="mb-1 block font-medium text-slate-700">Fecha acordada de entrega</span>
         <input type="date" min={today} className={inputClass} value={agreed}
           onChange={(e) => setAgreed(e.target.value)} />
+        <NonBusinessDayWarning date={agreed} />
         <span className="mt-1 block text-xs text-slate-500">
           {quotation.dispatch_date
             ? usableDispatch

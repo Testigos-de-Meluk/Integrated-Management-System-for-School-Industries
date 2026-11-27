@@ -7,10 +7,29 @@ from modules.products.infrastructure.dependencies import product_catalog
 from modules.quotations.infrastructure.dependencies import approved_quotations
 from modules.shared_kernel.infrastructure.audit.database_audit_logger import DatabaseAuditLogger
 from modules.shared_kernel.infrastructure.events.in_process_event_bus import event_bus
+from modules.work_orders.application.work_order_history_service import WorkOrderHistoryService
 from modules.work_orders.application.work_order_service import WorkOrderService
+from modules.work_orders.ports.inbound.work_order_history import (
+    CustomerWorkOrders,
+    DispatchHistory,
+)
 from modules.work_orders.ports.inbound.work_order_management import WorkOrderManagement
 
 from .persistence.repositories import DjangoWorkOrderNumberGenerator, DjangoWorkOrderRepository
+
+
+@lru_cache(maxsize=1)
+def work_order_history() -> WorkOrderHistoryService:
+    """For other modules: dispatch samples (quotations) and a customer's O.T.s (customers)."""
+    return WorkOrderHistoryService(DjangoWorkOrderRepository())
+
+
+def dispatch_history() -> DispatchHistory:
+    return work_order_history()
+
+
+def customer_work_orders() -> CustomerWorkOrders:
+    return work_order_history()
 
 
 @lru_cache(maxsize=1)

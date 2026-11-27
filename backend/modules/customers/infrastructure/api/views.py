@@ -29,6 +29,7 @@ from .serializers import (
     CustomerUpdateSerializer,
     HistoryEntrySerializer,
     HistoryPageSerializer,
+    HistoryQuerySerializer,
     NoteInputSerializer,
     NotePageSerializer,
     NoteSerializer,
@@ -150,13 +151,19 @@ class CustomerDeactivateView(APIView):
 class CustomerHistoryView(APIView):
     @extend_schema(
         tags=TAG,
-        summary="Quotations and work orders of the customer, newest first",
-        parameters=[PageQuerySerializer],
+        summary="Quotations or work orders of the customer (?type=), newest first",
+        parameters=[HistoryQuerySerializer],
         responses=HistoryPageSerializer,
     )
     def get(self, request: Request, customer_id: UUID) -> Response:
+        query = HistoryQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        data = query.validated_data
         page = customer_use_cases().customer_history(
-            get_current_actor(request), customer_id, _page_request(request)
+            get_current_actor(request),
+            customer_id,
+            data["type"],
+            PageRequest(page=data["page"], size=data["page_size"]),
         )
         return Response(page_payload(page, HistoryEntrySerializer))
 

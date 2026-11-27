@@ -18,6 +18,7 @@ from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID, uuid4
 
+from modules.shared_kernel.domain.document_numbers import business_date
 from modules.shared_kernel.domain.exceptions import ValidationError
 from modules.shared_kernel.domain.money import PriceRange, to_pesos
 from modules.shared_kernel.domain.text import REQUIRED
@@ -236,6 +237,7 @@ class Quotation:
         commercial_terms: str | None,
         dispatch_date: date | None,
         today: date,
+        suggested_dispatch_date: date | None = None,
     ) -> None:
         """Quantities, products, final unit prices, terms and dispatch date (US 2.28, US 2.13)."""
         self.ensure_editable()
@@ -247,7 +249,7 @@ class Quotation:
             validate_quantity(item.quantity)
             item.final_unit_price = validate_final_price(item.final_unit_price)
         terms = clean_multiline_text(commercial_terms, "commercial_terms", TERMS_MAX_LENGTH)
-        self._set_dispatch_date(dispatch_date, today)
+        self._set_dispatch_date(dispatch_date, today, suggested_dispatch_date)
         self.items = items
         self.commercial_terms = terms
         self.status = QuotationStatus.MODIFIED
@@ -261,6 +263,7 @@ class Quotation:
         approved_by_name: str,
         now: datetime,
         validity_days: int = DEFAULT_VALIDITY_DAYS,
+        suggested_dispatch_date: date | None = None,
     ) -> None:
         """Formalizes the quotation with final prices (FR-02-13, US 2.27). Immutable afterwards.
 
@@ -280,7 +283,7 @@ class Quotation:
         if errors:
             messages = [message for field_errors in errors.values() for message in field_errors]
             raise ApprovalIncomplete(errors, " ".join(messages))
-        self._set_dispatch_date(dispatch_date, now.date())
+        self._set_dispatch_date(dispatch_date, business_date(now), suggested_dispatch_date)
 
         for item in self.items:
             if prices.get(item.id) is not None:
@@ -311,7 +314,11 @@ class Quotation:
             return
         raise QuotationLocked()
 
-    def _set_dispatch_date(self, dispatch_date: date | None, today: date) -> None:
+    def _set_dispatch_date(
+        self, dispatch_date: date | None, today: date, suggested: date | None = None
+    ) -> None:
+        """``suggested`` is the median recalculated during the review (FR-02-06): accepting it
+        keeps the source SUGGESTED; any other date is MANUAL."""
         if dispatch_date == self.estimated_dispatch_date:
             return  # unchanged: keeps its source (a confirmed suggestion stays SUGGESTED)
         if dispatch_date is not None and dispatch_date < today:
@@ -319,7 +326,12 @@ class Quotation:
                 "dispatch_date", "La fecha de despacho no puede ser anterior a hoy."
             )
         self.estimated_dispatch_date = dispatch_date
-        self.dispatch_date_source = DispatchDateSource.MANUAL if dispatch_date else None
+        if dispatch_date is None:
+            self.dispatch_date_source = None
+        elif dispatch_date == suggested:
+            self.dispatch_date_source = DispatchDateSource.SUGGESTED
+        else:
+            self.dispatch_date_source = DispatchDateSource.MANUAL
 
     def snapshot(self) -> dict:
         """What the audit log keeps: the estimated range and the final price of every item are

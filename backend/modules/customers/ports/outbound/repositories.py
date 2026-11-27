@@ -50,6 +50,7 @@ class NoteRepository(ABC):
 
 @dataclass(frozen=True, slots=True)
 class HistoryEntry:
+    id: UUID
     document_type: str
     reference: str
     date: datetime
@@ -57,8 +58,11 @@ class HistoryEntry:
 
 
 class CommercialHistoryProvider(ABC):
-    """Quotations and work orders of a customer. They belong to other modules, which will provide
-    them through their inbound ports; until then the adapter returns an empty history."""
+    """Quotations or work orders of a customer (one list per type, each paginated). They belong
+    to other modules, which provide them through their inbound ports."""
 
     @abstractmethod
-    def history_for(self, customer_id: UUID, page_request: PageRequest) -> Page[HistoryEntry]: ...
+    def history_for(
+        self, customer_id: UUID, document_type: str, page_request: PageRequest
+    ) -> Page[HistoryEntry]:
+        """``document_type``: "QUOTATION" or "WORK_ORDER"; newest first."""

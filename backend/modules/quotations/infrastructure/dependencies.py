@@ -8,6 +8,7 @@ from modules.products.infrastructure.dependencies import product_catalog
 from modules.quotations.application.approved_quotations_service import (
     ApprovedQuotationsService,
 )
+from modules.quotations.application.dispatch_estimator import MedianDispatchDateEstimator
 from modules.quotations.application.estimators import (
     AiPriceEstimator,
     FallbackPriceEstimator,
@@ -23,7 +24,7 @@ from modules.quotations.ports.inbound.approved_quotations import ApprovedQuotati
 from modules.quotations.ports.inbound.customer_quotations import CustomerQuotations
 from modules.quotations.ports.inbound.quotation_requests import QuotationRequests
 from modules.quotations.ports.inbound.quotation_review import QuotationReview
-from modules.quotations.ports.outbound.ports import PriceEstimator
+from modules.quotations.ports.outbound.ports import DispatchDateEstimator, PriceEstimator
 from modules.shared_kernel.infrastructure.audit.database_audit_logger import DatabaseAuditLogger
 from modules.shared_kernel.infrastructure.events.in_process_event_bus import event_bus
 from modules.shared_kernel.infrastructure.llm import language_model
@@ -32,11 +33,11 @@ from modules.shared_kernel.infrastructure.notifications.celery_email_notifier im
 )
 
 from .documents.reportlab_generator import ReportLabQuotationGenerator
+from .persistence.dispatch_samples import WorkOrderDispatchSamples
 from .persistence.repositories import (
     DjangoPriceHistory,
     DjangoQuotationNumberGenerator,
     DjangoQuotationRepository,
-    NoHistoryDispatchDateEstimator,
 )
 from .pricing.cached_estimator import CachedPriceEstimator
 
@@ -59,6 +60,15 @@ def price_estimator() -> PriceEstimator:
 
 
 @lru_cache(maxsize=1)
+def dispatch_estimator() -> DispatchDateEstimator:
+    """Median of real dispatches (FR-02-06), read from the work orders module."""
+    # Imported here: the work orders module also imports this module (approved quotations).
+    from modules.work_orders.infrastructure.dependencies import dispatch_history
+
+    return MedianDispatchDateEstimator(WorkOrderDispatchSamples(dispatch_history()))
+
+
+@lru_cache(maxsize=1)
 def quotation_requests() -> QuotationRequests:
     """Public use cases of the virtual assistant."""
     return QuotationRequestService(
@@ -66,7 +76,7 @@ def quotation_requests() -> QuotationRequests:
         numbers=DjangoQuotationNumberGenerator(),
         catalog=product_catalog(),  # inbound port of the products module
         price_estimator=price_estimator(),
-        dispatch_estimator=NoHistoryDispatchDateEstimator(),  # median arrives in step 5
+        dispatch_estimator=dispatch_estimator(),
         documents=ReportLabQuotationGenerator(),
         notifier=CeleryEmailNotifier(),
         audit_logger=DatabaseAuditLogger(),
@@ -86,6 +96,7 @@ def quotation_review() -> QuotationReview:
         catalog=product_catalog(),
         customers=customer_directory(),  # inbound port of the customers module
         price_estimator=price_estimator(),
+        dispatch_estimator=dispatch_estimator(),
         documents=ReportLabQuotationGenerator(),
         notifier=CeleryEmailNotifier(),
         events=event_bus,

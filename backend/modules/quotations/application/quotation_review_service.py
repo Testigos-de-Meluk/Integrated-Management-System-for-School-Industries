@@ -39,11 +39,13 @@ from modules.quotations.ports.inbound.quotation_review import (
     ReviewItemView,
 )
 from modules.quotations.ports.outbound.ports import (
+    DispatchDateEstimator,
     PriceEstimator,
     QuotationDocumentGenerator,
     QuotationRepository,
 )
 from modules.shared_kernel.domain.audit import AuditAction, AuditRecord
+from modules.shared_kernel.domain.document_numbers import business_date
 from modules.shared_kernel.domain.exceptions import ValidationError
 from modules.shared_kernel.domain.notifications import Attachment, EmailMessage
 from modules.shared_kernel.domain.pagination import Page, PageRequest
@@ -113,6 +115,7 @@ class QuotationReviewService(QuotationReview):
         catalog: ProductCatalog,
         customers: CustomerDirectory,
         price_estimator: PriceEstimator,
+        dispatch_estimator: DispatchDateEstimator,
         documents: QuotationDocumentGenerator,
         notifier: Notifier,
         events: EventPublisher,
@@ -124,6 +127,7 @@ class QuotationReviewService(QuotationReview):
         self._catalog = catalog
         self._customers = customers
         self._prices = price_estimator
+        self._dispatch = dispatch_estimator
         self._documents = documents
         self._notifier = notifier
         self._events = events
@@ -171,11 +175,16 @@ class QuotationReviewService(QuotationReview):
         quotation.ensure_editable()
         reason = self._required_reason(command.reason, "Indique el motivo de la modificación.")
         before = quotation.snapshot()
+        items = self._reviewed_items(quotation, command.items)
+        today = business_date(self._now())
         quotation.modify(
-            self._reviewed_items(quotation, command.items),
+            items,
             command.commercial_terms,
             command.dispatch_date,
-            self._now().date(),
+            today,
+            suggested_dispatch_date=self._dispatch.suggest(
+                [(i.product_id, i.quantity) for i in items], today
+            ),
         )
         self._repository.update(quotation)
         self._log(AuditAction.UPDATED, actor, quotation, before, reason)
@@ -196,6 +205,7 @@ class QuotationReviewService(QuotationReview):
             actor.display_name or actor.role.value,
             now,
             self._validity_days,
+            suggested_dispatch_date=self._suggested_dispatch(quotation),
         )
         self._repository.update(quotation)
         self._log(AuditAction.APPROVED, actor, quotation, before)
@@ -321,6 +331,15 @@ class QuotationReviewService(QuotationReview):
                 )
         return lines
 
+    def _suggested_dispatch(self, quotation: Quotation):
+        """The median recalculated now (FR-02-06): there may be more history than when the
+        quotation was requested. Only while it can still change."""
+        if not quotation.is_editable:
+            return None
+        return self._dispatch.suggest(
+            [(i.product_id, i.quantity) for i in quotation.items], business_date(self._now())
+        )
+
     def _detail(self, quotation: Quotation) -> QuotationDetailView:
         total = quotation.estimated_total
         requester = quotation.requester
@@ -356,6 +375,7 @@ class QuotationReviewService(QuotationReview):
             approved_by_name=quotation.approved_by_name,
             customer=_customer_view(customer),
             suggested_customer=_customer_view(suggested),
+            suggested_dispatch_date=self._suggested_dispatch(quotation),
         )
 
     def _pdf(self, quotation: Quotation) -> bytes:

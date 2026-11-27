@@ -75,7 +75,7 @@ def audit():
 
 
 class EmptyHistory(CommercialHistoryProvider):
-    def history_for(self, customer_id, page_request):
+    def history_for(self, customer_id, document_type, page_request):
         return Page([], 0, page_request)
 
 

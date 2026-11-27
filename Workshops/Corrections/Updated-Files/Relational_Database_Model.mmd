@@ -187,6 +187,7 @@ erDiagram
         varchar order_number UK "OT-YYYYMMDD-NNNNN, global consecutive, read-only"
         uuid quotation_id FK "Approved source quotation; NOT NULL; unique among non-cancelled O.T.s"
         uuid customer_id FK "Required; must be ACTIVE when generated"
+        timestamptz quotation_approved_at "Snapshot: origin of the dispatch lead time"
         uuid created_by FK
         date agreed_delivery_date
         date actual_dispatch_date "Required when moving to RECONCILED (Conciliada); feeds the median"

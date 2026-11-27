@@ -159,6 +159,9 @@ class QuotationDetailView:
     customer: LinkedCustomerView | None
     #: A registered customer whose NIT matches the one typed by the requester (not linked yet).
     suggested_customer: LinkedCustomerView | None
+    #: The median recalculated now (FR-02-06); ``None`` when not editable or without enough
+    #: history ("Sin datos históricos suficientes para estimar la fecha de despacho").
+    suggested_dispatch_date: date | None = None
 
 
 @dataclass(frozen=True, slots=True)

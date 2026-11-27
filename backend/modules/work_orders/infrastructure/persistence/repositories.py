@@ -1,6 +1,6 @@
 """PostgreSQL adapters of the Work Orders module."""
 
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from django.db import IntegrityError, transaction
@@ -33,6 +33,7 @@ def _to_domain(model: WorkOrderModel) -> WorkOrder:
         number=model.order_number,
         quotation_id=model.quotation_id,
         quotation_number=model.quotation_number,
+        quotation_approved_at=model.quotation_approved_at,
         customer=WorkOrderCustomer(model.customer_id, model.customer_tax_id, model.customer_name),
         items=[
             WorkOrderItem(
@@ -60,6 +61,7 @@ def _header_fields(order: WorkOrder) -> dict:
         "order_number": order.number,
         "quotation_id": order.quotation_id,
         "quotation_number": order.quotation_number,
+        "quotation_approved_at": order.quotation_approved_at,
         "customer_id": order.customer.id,
         "customer_tax_id": order.customer.tax_id,
         "customer_name": order.customer.name,
@@ -149,6 +151,26 @@ class DjangoWorkOrderRepository(WorkOrderRepository):
             .first()
         )
         return _to_domain(model) if model else None
+
+    def reconciled_since(self, dispatched_since: date, product_ids: list[UUID]) -> list[WorkOrder]:
+        with_products = WorkOrderItemModel.objects.filter(product_id__in=product_ids).values(
+            "work_order_id"
+        )
+        models = WorkOrderModel.objects.prefetch_related("items").filter(
+            status=WorkOrderModel.Status.RECONCILED,
+            actual_dispatch_date__gte=dispatched_since,
+            pk__in=with_products,
+        )
+        return [_to_domain(m) for m in models]
+
+    def for_customer(self, customer_id: UUID, page_request: PageRequest) -> Page[WorkOrder]:
+        queryset = WorkOrderModel.objects.filter(customer_id=customer_id)
+        total = queryset.count()
+        start = page_request.offset
+        models = queryset.prefetch_related("items").order_by("-created_at", "-order_number")[
+            start : start + page_request.size
+        ]
+        return Page([_to_domain(m) for m in models], total, page_request)
 
     def quotations_with_active_order(self) -> frozenset[UUID]:
         return frozenset(

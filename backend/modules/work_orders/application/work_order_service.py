@@ -156,6 +156,7 @@ class WorkOrderService(WorkOrderManagement):
             number=self._numbers.next_number(now),
             quotation_id=quotation.id,
             quotation_number=quotation.number,
+            quotation_approved_at=quotation.approved_at,
             customer=WorkOrderCustomer(customer.id, customer.tax_id, customer.name),
             items=[
                 WorkOrderItem(

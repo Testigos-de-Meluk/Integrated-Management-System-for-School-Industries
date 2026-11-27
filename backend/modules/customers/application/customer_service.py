@@ -147,13 +147,14 @@ class CustomerService(CustomerUseCases):
         return self._change_status(actor, customer_id, activate=True)
 
     def customer_history(
-        self, actor: Actor, customer_id: UUID, page_request: PageRequest
+        self, actor: Actor, customer_id: UUID, document_type: str, page_request: PageRequest
     ) -> Page[HistoryEntryView]:
         actor.require(Permission.CUSTOMER_MANAGE)
         self._get_or_fail(customer_id)
-        page = self._history.history_for(customer_id, page_request)
+        page = self._history.history_for(customer_id, document_type, page_request)
         items = [
-            HistoryEntryView(e.document_type, e.reference, e.date, e.status) for e in page.items
+            HistoryEntryView(e.id, e.document_type, e.reference, e.date, e.status)
+            for e in page.items
         ]
         return Page(items, page.total, page.request)
 

@@ -1,7 +1,7 @@
 """Outbound ports of the Work Orders module."""
 
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from modules.shared_kernel.domain.pagination import Page, PageRequest
@@ -30,6 +30,14 @@ class WorkOrderRepository(ABC):
 
     @abstractmethod
     def quotations_with_active_order(self) -> frozenset[UUID]: ...
+
+    @abstractmethod
+    def reconciled_since(self, dispatched_since: date, product_ids: list[UUID]) -> list[WorkOrder]:
+        """RECONCILED O.T.s dispatched on or after the date that contain any of the products."""
+
+    @abstractmethod
+    def for_customer(self, customer_id: UUID, page_request: PageRequest) -> Page[WorkOrder]:
+        """Newest first."""
 
 
 class WorkOrderNumberGenerator(ABC):

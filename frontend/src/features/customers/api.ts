@@ -55,8 +55,11 @@ export type CustomerFields = {
 };
 export type NewCustomer = CustomerFields & { customer_type: CustomerType; tax_id: string };
 
+export type HistoryType = "QUOTATION" | "WORK_ORDER";
+
 export type HistoryEntry = {
-  document_type: "QUOTATION" | "WORK_ORDER";
+  id: string;
+  document_type: HistoryType;
   reference: string;
   date: string;
   status: string;
@@ -77,7 +80,7 @@ const keys = {
   all: ["customers"] as const,
   list: (filters: CustomerFilters, page: number) => [...keys.all, "list", { ...filters, page }] as const,
   byTaxId: (taxId: string) => [...keys.all, "by-tax-id", taxId] as const,
-  history: (id: string, page: number) => [...keys.all, id, "history", page] as const,
+  history: (id: string, type: HistoryType, page: number) => [...keys.all, id, "history", type, page] as const,
   notes: (id: string, page: number) => [...keys.all, id, "notes", page] as const,
 };
 
@@ -97,13 +100,14 @@ export function useCustomerByTaxId(taxId: string) {
   });
 }
 
-export function useCustomerHistory(customerId: string | undefined, page: number) {
+export function useCustomerHistory(customerId: string | undefined, type: HistoryType, page: number) {
   return useQuery({
-    queryKey: keys.history(customerId ?? "", page),
+    queryKey: keys.history(customerId ?? "", type, page),
     queryFn: () =>
       api.get<Paginated<HistoryEntry>>(`/customers/${customerId}/history/`, {
+        type,
         page,
-        page_size: 50,
+        page_size: 20,
       }),
     enabled: Boolean(customerId),
   });

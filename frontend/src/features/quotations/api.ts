@@ -79,6 +79,8 @@ export type QuotationDetail = {
   approved_by_name: string;
   customer: LinkedCustomer | null;
   suggested_customer: LinkedCustomer | null;
+  /** Median recalculated now (FR-02-06); null when not editable or without enough history. */
+  suggested_dispatch_date: string | null;
 };
 
 export type QuotationFilters = {
