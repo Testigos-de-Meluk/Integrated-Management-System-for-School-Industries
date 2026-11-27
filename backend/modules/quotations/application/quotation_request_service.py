@@ -168,7 +168,7 @@ class QuotationRequestService(QuotationRequests):
         lines = self._build_items(command.items)
         now = self._now()
         quotation = Quotation.request(
-            number=self._numbers.next_number(now.year),
+            number=self._numbers.next_number(now),
             requester=requester,
             items=lines,
             now=now,

@@ -85,14 +85,17 @@ class QuotationItemModel(models.Model):
         return f"{self.product_code} x {self.quantity}"
 
 
-class QuotationSequenceModel(models.Model):
-    """Last quotation number issued per year (locked row → no duplicate numbers)."""
+class QuotationCounterModel(models.Model):
+    """Last quotation consecutive issued, global (never restarts). A single row, locked while a
+    number is taken, so two requests never get the same one."""
 
-    year = models.PositiveSmallIntegerField(primary_key=True)
+    SINGLETON = 1
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=SINGLETON)
     last_number = models.PositiveIntegerField(default=0)
 
     class Meta:
-        db_table = "quotation_sequence"
+        db_table = "quotation_counter"
 
     def __str__(self) -> str:
-        return f"{self.year}: {self.last_number}"
+        return str(self.last_number)

@@ -84,7 +84,7 @@ def test_request_saves_a_numbered_pending_quotation_and_audits_it(service, deps)
     first = service.request_quotation(command(), "10.0.0.5")
     second = service.request_quotation(command(), "10.0.0.5")
 
-    assert first.number.endswith("-0001") and second.number.endswith("-0002")
+    assert first.number.endswith("-00001") and second.number.endswith("-00002")
     record = deps["audit"].records[0]
     assert record.resolved_actor_type is ActorType.ANONYMOUS and record.source_ip == "10.0.0.5"
 

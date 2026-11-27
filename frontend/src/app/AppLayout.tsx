@@ -20,6 +20,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/catalogo", label: "Catálogo", permission: "CATALOG_VIEW" },
   { to: "/clientes", label: "Clientes", permission: "CUSTOMER_MANAGE" },
   { to: "/cotizaciones", label: "Cotizaciones", permission: "QUOTATION_MANAGE" },
+  { to: "/ordenes-trabajo", label: "Órdenes de trabajo", permission: "WORK_ORDER_MANAGE" },
   { to: "/cuentas", label: "Cuentas y permisos", permission: "USER_MANAGE" },
 ];
 

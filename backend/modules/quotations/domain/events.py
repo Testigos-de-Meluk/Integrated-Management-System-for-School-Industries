@@ -9,7 +9,8 @@ from modules.shared_kernel.domain.events import DomainEvent
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class QuotationApproved(DomainEvent):
-    """An approved quotation enters the export queue and can become a work order (step 5)."""
+    """An approved quotation can become a work order. No subscribers: the export queue is fed
+    by ``WorkOrderGenerated`` (step 5 decision)."""
 
     quotation_id: UUID
     number: str

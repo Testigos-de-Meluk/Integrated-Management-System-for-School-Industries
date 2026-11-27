@@ -27,6 +27,16 @@ Sources of truth, in order of precedence:
   ready). Conventional commits (`feat:`, `fix:`, `docs:`, `refactor:`). Commit only when the user asks.
   **No AI attribution**: commit messages and PR descriptions never carry `Co-Authored-By: Claude…`
   or "Generated with Claude Code" lines (team decision, November 2026).
+  **Teammates on this PC:** when a teammate does a task on Cristofer's computer, the commit is
+  made under the teammate's GitHub username and email for that command only:
+  `git -c user.name="<username>" -c user.email="<email>" commit …` (push as usual). Only when
+  that teammate actually did the work; otherwise commits are Cristofer's.
+
+  | Teammate | `user.name` | `user.email` |
+  |---|---|---|
+  | Juan Sebastián Gil | megasord9 | jgilsan@unal.edu.co |
+  | Andrés Franco | AFrancoSUNAL | afrancose@unal.edu.co |
+  | Carlos Cuervo | carlonox | cjcuervob@gmail.com |
 - **Never** commit `.env` or secrets. Use synthetic data in tests (NFR-05-02).
 - GitHub Actions / CI: postponed (not configured yet).
 
@@ -150,7 +160,8 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
   without history is `None` = "Precio por confirmar" (user decision). Estimator =
   `FallbackPriceEstimator` (see AI features below), statistical = interquartile range of APPROVED
   final unit prices in the last 365 days. Dispatch date = `NoHistoryDispatchDateEstimator`
-  until step 5. Quotation numbers `COT-<year>-<0001>` (locked sequence row). Validity 15 days.
+  until step 5. Quotation numbers `COT-YYYYMMDD-NNNNN` (see Step 5 decisions; migration
+  `quotations.0004` renumbered the old `COT-<year>-<0001>` ones). Validity 15 days.
   Data-processing consent (Law 1581) required. PDFs with ReportLab (escape user text). The
   requester gets an `access_key` to download/email only their quotation: it always travels in the
   request body (PDF and email are `POST`), never in the URL (logs, history), and is compared as
@@ -195,6 +206,37 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
   Results (including "no estimate") are cached per product in Redis for `AI_PRICE_CACHE_SECONDS`.
   Each item stores `price_source` (HISTORY / AI), shown to the requester ("Estimado con IA") and
   in the review. Personal data is never sent to the AI.
+- **Step 5 decisions (work orders and Siigo export, November 2026; recorded in the corrections
+  README):** quotation cycle PENDING_REVIEW ("Pendiente de revisión") → MODIFIED ("Modificada",
+  optional, repeatable) → APPROVED ("Aprobada") or REJECTED ("Rechazada"); the last two are final.
+  O.T. cycle PENDING ("Pendiente") → REGISTERED_IN_SIIGO ("Registrada en Siigo", **only** set by
+  generating the export file) → RECONCILED ("Conciliada", manual, requires `actual_dispatch_date`
+  ≤ today); CANCELLED ("Anulada") from any other status, with a reason, plus a "also annul it in
+  Siigo" warning once exported. Only a PENDING O.T. is editable (customer, items, quantities,
+  agreed date). O.T.s have **no prices**. A quotation has at most one non-cancelled O.T.; after
+  annulling, a new one can be generated. "Generar O.T." lives on the work orders screen (list of
+  approved quotations without an active O.T.); choosing a customer there also links it to the
+  quotation. The **export queue holds work orders** (not quotations): an O.T. enters on
+  `WorkOrderGenerated`, leaves when annulled before export or when exported. Numbers:
+  `COT-YYYYMMDD-NNNNN` and `OT-YYYYMMDD-NNNNN` (creation date + global 5-digit counter per document
+  type that never restarts); existing dev quotations are renumbered by a data migration that is a
+  no-op on an empty database. Sub-steps: 5a work orders + numbering, 5b dispatch-date median + O.T.
+  in the 360 history, 5c export queue, 5d Siigo Pyme 10.1 flat file (**remind the user to send the
+  Siigo sample/template when 5d starts**). Ask who is in charge at the start of each sub-step.
+- **Work orders (5a, done):** `work_orders` module, API `/api/work-orders/` (list with filters,
+  `available-quotations/`, POST generate, GET/PATCH `<id>/`, `<id>/cancel/`, `<id>/reconcile/`),
+  `WORK_ORDER_MANAGE`. Reaches quotations through the new `quotations.ApprovedQuotations` inbound
+  port (requires `WORK_ORDER_MANAGE`; lists approved quotations minus the ids that have an active
+  O.T., links the customer and audits it in the quotations module), customers through
+  `CustomerDirectory` and products through `ProductCatalog`. O.T. rows keep snapshots of the
+  quotation number, customer (tax id, name) and items. One active O.T. per quotation is enforced
+  by a partial unique index (`work_order_one_active_per_quotation`, mapped to 409
+  `ACTIVE_WORK_ORDER_EXISTS`). `WorkOrder.mark_registered_in_siigo()` exists for 5d; no endpoint
+  calls it. Generating publishes `WorkOrderGenerated` (no subscriber until 5c). Numbers come from
+  `shared_kernel.domain.document_numbers` (Bogotá date) and single-row counters locked with
+  `select_for_update`. Frontend: `/ordenes-trabajo` (list + "Generar O.T." dialog) and
+  `/ordenes-trabajo/:id` (edit while Pendiente, annul with the Siigo warning, reconcile);
+  `ProductPicker` (products) and `ReasonDialog` (shared/ui) are shared with the quotation review.
 - Patterns required by NFR-05-01: Factory (`Entity.register`), Singleton (`lru_cache`
   composition roots, `event_bus`), Observer (events), Strategy (price estimators, dispatch-date
   estimator).
@@ -208,7 +250,7 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
 | 2 | Authentication + user accounts + audit (backend and frontend) | Done |
 | 3 | Customers and commercial notes | Done |
 | 4 | Chatbot (hybrid assistant) + Quotations | Done (4a public assistant, 4b admin review, 4c AI: free text + AI price estimate) |
-| 5 | Siigo export queue + Work orders | Pending |
+| 5 | Siigo export queue + Work orders | **In progress**: 5a work orders + numbering done; next 5b (dispatch median + 360 history), 5c (queue), 5d (Siigo file) |
 | 6 | Backups + WhatsApp price history import | Pending |
 
 The first push/PR happens when the user decides (first release with several modules working).
@@ -217,6 +259,8 @@ The first push/PR happens when the user decides (first release with several modu
 
 - **Sandbox restore adapter** (isolated environment for backup tests, FR-01-09): before step 6.
 - **Siigo Pyme flat-file format** (columns, CSV/TXT): ask the user before implementing the export.
+  Target version: **Siigo Pyme 10.1**, desktop (NFR-06-02 in the corrections README); still
+  missing the import option and a sample/template file of that version.
 - **Postman collection** (can be imported from `/api/schema/`): later.
 - **WhatsApp screenshots**: confirm whether the AI provider can read images (else OCR or `.txt`);
   the WhatsApp samples should also feed `PriceHistory.reference_samples` (AI price references).
@@ -240,7 +284,8 @@ The first push/PR happens when the user decides (first release with several modu
   was targeted", not that its owner acted; make that clear in the UI.
 - Frontend bundle > 500 kB: split by route later.
 - **Customer history** on the 360 profile lists quotations (`QuotationsCommercialHistory`); merge
-  work orders into it in step 5. Step 5 also subscribes to `QuotationApproved` (export queue).
+  work orders into it in step 5b. The export queue subscribes to `WorkOrderGenerated` (5c), not to
+  `QuotationApproved` (which keeps no subscriber).
 
 ## Environment notes
 

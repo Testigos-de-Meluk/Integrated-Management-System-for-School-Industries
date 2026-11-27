@@ -31,12 +31,19 @@ class QuotationRepository(ABC):
     def for_customer(self, customer_id: UUID, page_request: PageRequest) -> Page[Quotation]:
         """Quotations linked to a customer, newest first."""
 
+    @abstractmethod
+    def search_approved(
+        self, text: str | None, excluded_ids: frozenset[UUID], page_request: PageRequest
+    ) -> Page[Quotation]:
+        """APPROVED quotations not in ``excluded_ids``, newest approval first; ``text`` matches
+        the number, requester name, institution or NIT."""
+
 
 class QuotationNumberGenerator(ABC):
-    """Consecutive human reference per year: COT-2026-0001, COT-2026-0002…"""
+    """``COT-YYYYMMDD-NNNNN``: local issue date + global consecutive that never restarts."""
 
     @abstractmethod
-    def next_number(self, year: int) -> str: ...
+    def next_number(self, issued_at: datetime) -> str: ...
 
 
 @dataclass(frozen=True, slots=True)

@@ -11,6 +11,7 @@ from rest_framework.test import APIClient
 from rest_framework.throttling import ScopedRateThrottle
 
 from modules.quotations.infrastructure.models import QuotationItemModel, QuotationModel
+from modules.shared_kernel.domain.document_numbers import business_date
 from modules.shared_kernel.domain.security import RoleType
 from modules.shared_kernel.infrastructure.models import AuditEntryModel
 
@@ -62,7 +63,7 @@ def approve_history(product_id, prices):
     """Simulates approved quotations (sub-step 4b) to feed the statistical estimator."""
     for index, price in enumerate(prices):
         quotation = QuotationModel.objects.create(
-            quotation_number=f"COT-2025-{index + 1:04d}",
+            quotation_number=f"COT-20251001-{index + 90001:05d}",
             issued_at=timezone.now() - timedelta(days=30),
             requester_full_name="X",
             requester_email="x@x.co",
@@ -109,7 +110,7 @@ def test_request_quotation_end_to_end(products, django_capture_on_commit_callbac
     response = client.post(f"{BASE}quotations/", request_body(products), "json")
     assert response.status_code == 201
     quotation = response.json()
-    assert quotation["number"] == f"COT-{timezone.now().year}-0001"
+    assert quotation["number"] == f"COT-{business_date(timezone.now()):%Y%m%d}-00001"
     stored = QuotationModel.objects.get(pk=quotation["id"])
     assert stored.status == "PENDING_REVIEW" and stored.requester_tax_id == "800197268-4"
     assert AuditEntryModel.objects.filter(
@@ -130,7 +131,7 @@ def test_request_quotation_end_to_end(products, django_capture_on_commit_callbac
     assert mail.outbox[0].attachments[0][0] == f"{quotation['number']}.pdf"
 
     second = client.post(f"{BASE}quotations/", request_body(products), "json").json()
-    assert second["number"].endswith("-0002")
+    assert second["number"].endswith("-00002")  # global counter, never restarts
 
 
 def test_non_ascii_access_key_returns_404_not_500(products):

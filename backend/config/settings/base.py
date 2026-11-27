@@ -165,6 +165,9 @@ SPECTACULAR_SETTINGS = {
     "ENUM_NAME_OVERRIDES": {
         "ActiveStatusEnum": "modules.products.ports.inbound.product_use_cases.PRODUCT_STATUSES",
         "RoleEnum": "modules.user_accounts.ports.inbound.user_account_use_cases.ROLES",
+        "WorkOrderStatusEnum": (
+            "modules.work_orders.ports.inbound.work_order_management.WORK_ORDER_STATUSES"
+        ),
         "QuotationStatusEnum": (
             "modules.quotations.ports.inbound.quotation_review.QUOTATION_STATUSES"
         ),

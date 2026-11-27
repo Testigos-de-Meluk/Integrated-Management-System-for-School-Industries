@@ -14,6 +14,7 @@ from modules.quotations.ports.outbound.ports import (
     QuotationNumberGenerator,
     QuotationRepository,
 )
+from modules.shared_kernel.domain.document_numbers import document_number
 from modules.shared_kernel.domain.pagination import Page
 from modules.shared_kernel.ports.outbound.language_model import LanguageModel, LanguageModelError
 
@@ -56,14 +57,24 @@ class MemoryRepository(QuotationRepository):
         found = [q for q in self.items.values() if q.customer_id == customer_id]
         return Page(found, len(found), page_request)
 
+    def search_approved(self, text, excluded_ids, page_request):
+        found = [
+            q
+            for q in self.items.values()
+            if q.status.value == "APPROVED"
+            and q.id not in excluded_ids
+            and (not text or text.lower() in q.number.lower())
+        ]
+        return Page(found[: page_request.size], len(found), page_request)
+
 
 class Numbers(QuotationNumberGenerator):
     def __init__(self):
         self.last = 0
 
-    def next_number(self, year):
+    def next_number(self, issued_at):
         self.last += 1
-        return f"COT-{year}-{self.last:04d}"
+        return document_number("COT", issued_at, self.last)
 
 
 class FixedHistory(PriceHistory):

@@ -17,9 +17,9 @@ from modules.quotations.domain.quotation import (
     RequesterContact,
 )
 from modules.quotations.infrastructure.models import (
+    QuotationCounterModel,
     QuotationItemModel,
     QuotationModel,
-    QuotationSequenceModel,
 )
 from modules.quotations.ports.inbound.quotation_review import QuotationFilters
 from modules.quotations.ports.outbound.ports import (
@@ -29,8 +29,11 @@ from modules.quotations.ports.outbound.ports import (
     QuotationNumberGenerator,
     QuotationRepository,
 )
+from modules.shared_kernel.domain.document_numbers import document_number
 from modules.shared_kernel.domain.money import PriceRange
 from modules.shared_kernel.domain.pagination import Page, PageRequest
+
+QUOTATION_PREFIX = "COT"
 
 
 def _to_domain(model: QuotationModel) -> Quotation:
@@ -191,16 +194,36 @@ class DjangoQuotationRepository(QuotationRepository):
     def for_customer(self, customer_id: UUID, page_request: PageRequest) -> Page[Quotation]:
         return _page(QuotationModel.objects.filter(customer_id=customer_id), page_request)
 
+    def search_approved(
+        self, text: str | None, excluded_ids: frozenset[UUID], page_request: PageRequest
+    ) -> Page[Quotation]:
+        queryset = QuotationModel.objects.filter(status=QuotationModel.Status.APPROVED).exclude(
+            pk__in=excluded_ids
+        )
+        if text:
+            queryset = queryset.filter(
+                Q(quotation_number__icontains=text)
+                | Q(requester_full_name__icontains=text)
+                | Q(requester_institution__icontains=text)
+                | Q(requester_tax_id__icontains=text)
+            )
+        total = queryset.count()
+        start = page_request.offset
+        models = queryset.prefetch_related("items").order_by("-approved_at", "-quotation_number")[
+            start : start + page_request.size
+        ]
+        return Page([_to_domain(m) for m in models], total, page_request)
+
 
 class DjangoQuotationNumberGenerator(QuotationNumberGenerator):
-    def next_number(self, year: int) -> str:
-        with transaction.atomic():
-            sequence, _ = QuotationSequenceModel.objects.select_for_update().get_or_create(
-                year=year
+    def next_number(self, issued_at: datetime) -> str:
+        with transaction.atomic():  # the locked row means two requests never share a number
+            counter, _ = QuotationCounterModel.objects.select_for_update().get_or_create(
+                pk=QuotationCounterModel.SINGLETON
             )
-            sequence.last_number += 1
-            sequence.save(update_fields=["last_number"])
-        return f"COT-{year}-{sequence.last_number:04d}"
+            counter.last_number += 1
+            counter.save(update_fields=["last_number"])
+        return document_number(QUOTATION_PREFIX, issued_at, counter.last_number)
 
 
 class DjangoPriceHistory(PriceHistory):

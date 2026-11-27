@@ -2,12 +2,12 @@ import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
 
 import type { Customer } from "@/features/customers/api";
-import { useProducts } from "@/features/products/api";
+import { ProductPicker } from "@/features/products/ProductPicker";
 import { api, ApiError } from "@/shared/api/http";
 import { formatCOP, formatDateOnly, formatRange } from "@/shared/format";
 import { Button } from "@/shared/ui/Button";
 import { ConfirmDialog } from "@/shared/ui/ConfirmDialog";
-import { Modal } from "@/shared/ui/Modal";
+import { ReasonDialog } from "@/shared/ui/ReasonDialog";
 
 import {
   downloadQuotationPdf,
@@ -507,102 +507,6 @@ function CustomerSection({ detail }: { detail: QuotationDetail }) {
       )}
       {message && <p role="alert" className="mt-2 text-red-700">{message}</p>}
     </section>
-  );
-}
-
-function ProductPicker({ onPick }: { onPick: (product: { id: string; code: string; name: string; unit_of_measure: string }) => void }) {
-  const [text, setText] = useState("");
-  const query = text.trim();
-  const { data } = useProducts({ name: query, status: "ACTIVE" }, 1, 8);
-  const results = query.length >= 2 ? (data?.results ?? []) : [];
-
-  return (
-    <div className="relative mt-4 max-w-md">
-      <label htmlFor="add-product" className="mb-1 block text-sm font-medium text-slate-700">
-        Agregar producto del catálogo
-      </label>
-      <input id="add-product" placeholder="Escriba al menos 2 letras del nombre" className={inputClass}
-        value={text} onChange={(e) => setText(e.target.value)} autoComplete="off" />
-      {results.length > 0 && (
-        <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg">
-          {results.map((product) => (
-            <li key={product.id}>
-              <button type="button" className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
-                onClick={() => { onPick(product); setText(""); }}>
-                <span className="font-medium">{product.name}</span>{" "}
-                <span className="text-xs text-slate-500">{product.code}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      {query.length >= 2 && data && data.results.length === 0 && (
-        <p className="mt-1 text-xs text-slate-500">No hay productos activos con ese nombre.</p>
-      )}
-    </div>
-  );
-}
-
-function ReasonDialog({
-  open, title, label, hint, confirmLabel, danger = false, onConfirm, onClose,
-}: {
-  open: boolean;
-  title: string;
-  label: string;
-  hint: string;
-  confirmLabel: string;
-  danger?: boolean;
-  onConfirm: (reason: string) => Promise<unknown>;
-  onClose: () => void;
-}) {
-  const [reason, setReason] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
-
-  const close = () => {
-    setReason("");
-    setError(null);
-    onClose();
-  };
-
-  const confirm = async () => {
-    if (!reason.trim()) {
-      setError("El motivo es obligatorio.");
-      return;
-    }
-    setPending(true);
-    setError(null);
-    try {
-      await onConfirm(reason.trim());
-      close();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        const fieldMessages = Object.values(err.fieldErrors).flat();
-        setError(fieldMessages.length ? fieldMessages.join(" ") : err.message);
-      } else {
-        setError("No fue posible conectar con el servidor. Intente de nuevo.");
-      }
-    } finally {
-      setPending(false);
-    }
-  };
-
-  return (
-    <Modal open={open} title={title} onClose={close}>
-      <div className="space-y-3 text-sm">
-        <label htmlFor="reason" className="block font-medium text-slate-700">{label}</label>
-        <textarea id="reason" rows={4} maxLength={1000} className={inputClass} value={reason}
-          onChange={(e) => setReason(e.target.value)} />
-        <p className="text-xs text-slate-500">{hint}</p>
-        {error && <p role="alert" className="rounded-md bg-red-50 p-3 text-red-800">{error}</p>}
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={close}>Cancelar</Button>
-          <Button variant={danger ? "danger" : "primary"} disabled={pending} onClick={confirm}>
-            {confirmLabel}
-          </Button>
-        </div>
-      </div>
-    </Modal>
   );
 }
 

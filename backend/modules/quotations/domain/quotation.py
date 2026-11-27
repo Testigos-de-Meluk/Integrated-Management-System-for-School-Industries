@@ -147,7 +147,7 @@ def validate_quantity(quantity: int) -> None:
 
 @dataclass(eq=False, slots=True)
 class Quotation:
-    number: str  # human reference, e.g. COT-2026-0001
+    number: str  # human reference, e.g. COT-20261127-00042
     issued_at: datetime
     requester: RequesterContact
     items: list[QuotationItem]

@@ -38,8 +38,8 @@ backend/
 | `customers` | `/api/customers/` | Natural persons / legal entities, 360° profile, commercial notes | Done |
 | `chatbot` | `/api/chatbot/` | Hybrid virtual assistant (guided steps + free-text proposals) | Done |
 | `quotations` | `/api/quotations/` | Price-range estimation, PDF, review, approval, rejection | Done |
-| `work_orders` | `/api/work-orders/` | O.T. generation from approved quotations and status lifecycle | Skeleton |
-| `accounting_export` | `/api/accounting-export/` | Processing queue and Siigo Pyme flat-file batches | Skeleton |
+| `work_orders` | `/api/work-orders/` | O.T. generation from approved quotations and status lifecycle | Done (5a) |
+| `accounting_export` | `/api/accounting-export/` | Processing queue and Siigo Pyme 10.1 flat-file batches | Skeleton |
 | `backups` | `/api/backups/` | Scheduled full/differential backups, inventory, verified restore | Skeleton |
 | `price_history` | `/api/price-history/` | WhatsApp chat import and review of price samples | Skeleton |
 

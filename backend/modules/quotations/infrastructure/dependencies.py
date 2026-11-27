@@ -5,6 +5,9 @@ from functools import lru_cache
 from django.conf import settings
 
 from modules.products.infrastructure.dependencies import product_catalog
+from modules.quotations.application.approved_quotations_service import (
+    ApprovedQuotationsService,
+)
 from modules.quotations.application.estimators import (
     AiPriceEstimator,
     FallbackPriceEstimator,
@@ -16,6 +19,7 @@ from modules.quotations.application.quotation_review_service import (
     CustomerQuotationsService,
     QuotationReviewService,
 )
+from modules.quotations.ports.inbound.approved_quotations import ApprovedQuotations
 from modules.quotations.ports.inbound.customer_quotations import CustomerQuotations
 from modules.quotations.ports.inbound.quotation_requests import QuotationRequests
 from modules.quotations.ports.inbound.quotation_review import QuotationReview
@@ -87,6 +91,16 @@ def quotation_review() -> QuotationReview:
         events=event_bus,
         audit_logger=DatabaseAuditLogger(),
         validity_days=settings.QUOTATION_VALIDITY_DAYS,
+    )
+
+
+@lru_cache(maxsize=1)
+def approved_quotations() -> ApprovedQuotations:
+    """For the work orders module: approved quotations and linking their customer."""
+    from modules.customers.infrastructure.dependencies import customer_directory
+
+    return ApprovedQuotationsService(
+        DjangoQuotationRepository(), customer_directory(), DatabaseAuditLogger()
     )
 
 
