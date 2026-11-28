@@ -18,7 +18,7 @@ export function ReasonDialog({
   hint: string;
   confirmLabel: string;
   danger?: boolean;
-  /** Shown above the reason, e.g. "anúlela también en Siigo". */
+  /** Shown above the reason, e.g. "anúlela también en Odoo". */
   warning?: string;
   onConfirm: (reason: string) => Promise<unknown>;
   onClose: () => void;

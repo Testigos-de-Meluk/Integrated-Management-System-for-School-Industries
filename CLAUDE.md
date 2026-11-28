@@ -206,13 +206,23 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
   Results (including "no estimate") are cached per product in Redis for `AI_PRICE_CACHE_SECONDS`.
   Each item stores `price_source` (HISTORY / AI), shown to the requester ("Estimado con IA") and
   in the review. Personal data is never sent to the AI.
-- **Step 5 decisions (work orders and Siigo export, November 2026; recorded in the corrections
+- **Accounting system: Odoo Community 20 replaces Siigo Pyme 10.1** (decision of Industrias
+  Escolares with the team, November 2026; corrections README section 3.4, NFR-06-02). In the
+  deliverables: "they use Siigo Pyme 10.1 and are migrating to Odoo Community". Version: Odoo 20
+  Community for Windows, installer `odoo_setup_20.0.20261128.exe` (same build for everybody),
+  database with country Colombia and the Ventas app. Integration **by file** (no API), imported
+  by hand in Odoo (Ventas → Pedidos → Importar registros); customers (same name) and products
+  (internal reference = IMSI code) are created by hand in Odoo; the team tests the import
+  themselves (no Odoo in Docker). Code uses neutral names (`REGISTERED_IN_ACCOUNTING`, shown
+  "Registrada en Odoo"; `mark_registered_in_accounting()`). Old migrations and the historical
+  Workshop files keep the word Siigo. Evaluated and rejected: ERPNext, Alegra (paid), Nubicta.
+- **Step 5 decisions (work orders and export, November 2026; recorded in the corrections
   README):** quotation cycle PENDING_REVIEW ("Pendiente de revisión") → MODIFIED ("Modificada",
   optional, repeatable) → APPROVED ("Aprobada") or REJECTED ("Rechazada"); the last two are final.
-  O.T. cycle PENDING ("Pendiente") → REGISTERED_IN_SIIGO ("Registrada en Siigo", **only** set by
+  O.T. cycle PENDING ("Pendiente") → REGISTERED_IN_ACCOUNTING ("Registrada en Odoo", **only** set by
   generating the export file) → RECONCILED ("Conciliada", manual, requires `actual_dispatch_date`
   ≤ today); CANCELLED ("Anulada") from any other status, with a reason, plus a "also annul it in
-  Siigo" warning once exported. Only a PENDING O.T. is editable (customer, items, quantities,
+  Odoo" warning once exported. Only a PENDING O.T. is editable (customer, items, quantities,
   agreed date). O.T.s have **no prices**. A quotation has at most one non-cancelled O.T.; after
   annulling, a new one can be generated. "Generar O.T." lives on the work orders screen (list of
   approved quotations without an active O.T.); choosing a customer there also links it to the
@@ -221,8 +231,7 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
   `COT-YYYYMMDD-NNNNN` and `OT-YYYYMMDD-NNNNN` (creation date + global 5-digit counter per document
   type that never restarts); existing dev quotations are renumbered by a data migration that is a
   no-op on an empty database. Sub-steps: 5a work orders + numbering, 5b dispatch-date median + O.T.
-  in the 360 history, 5c export queue, 5d Siigo Pyme 10.1 flat file (**remind the user to send the
-  Siigo sample/template when 5d starts**). Ask who is in charge at the start of each sub-step.
+  in the 360 history, 5c export queue, 5d Odoo export batches. Ask who is in charge at the start of each sub-step.
 - **Work orders (5a, done):** `work_orders` module, API `/api/work-orders/` (list with filters,
   `available-quotations/`, POST generate, GET/PATCH `<id>/`, `<id>/cancel/`, `<id>/reconcile/`),
   `WORK_ORDER_MANAGE`. Reaches quotations through the new `quotations.ApprovedQuotations` inbound
@@ -231,11 +240,11 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
   `CustomerDirectory` and products through `ProductCatalog`. O.T. rows keep snapshots of the
   quotation number, customer (tax id, name) and items. One active O.T. per quotation is enforced
   by a partial unique index (`work_order_one_active_per_quotation`, mapped to 409
-  `ACTIVE_WORK_ORDER_EXISTS`). `WorkOrder.mark_registered_in_siigo()` exists for 5d; no endpoint
-  calls it. Generating publishes `WorkOrderGenerated` (no subscriber until 5c). Numbers come from
+  `ACTIVE_WORK_ORDER_EXISTS`). `WorkOrder.mark_registered_in_accounting()` is called only by the
+  export (5d). Generating publishes `WorkOrderGenerated` (no subscriber until 5c). Numbers come from
   `shared_kernel.domain.document_numbers` (Bogotá date) and single-row counters locked with
   `select_for_update`. Frontend: `/ordenes-trabajo` (list + "Generar O.T." dialog) and
-  `/ordenes-trabajo/:id` (edit while Pendiente, annul with the Siigo warning, reconcile);
+  `/ordenes-trabajo/:id` (edit while Pendiente, annul with the Odoo warning, reconcile);
   `ProductPicker` (products) and `ReasonDialog` (shared/ui) are shared with the quotation review.
 - **Dispatch date and 360 history (5b, done):** business days = Monday–Friday minus Colombian
   holidays (`shared_kernel.domain.business_days`, computed in Python incl. Ley Emiliani and Easter;
@@ -254,18 +263,33 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
 - **Export queue (5c, done):** `accounting_export` module, `GET /api/accounting-export/queue/`
   (`EXPORT_QUEUE_MANAGE`; filters generation date range, customer, O.T. number; oldest first).
   `QueueEntry` (table `processing_queue_entry`, one row per O.T., `work_order_id` unique) with
-  status PENDING_EXPORT / EXPORTED (5d) / WITHDRAWN; entries are never deleted. Fed in
+  status PENDING_EXPORT / EXPORTED / WITHDRAWN; entries are never deleted. Fed in
   `AccountingExportConfig.ready()` by `WorkOrderGenerated` (enqueue, idempotent) and
   `WorkOrderCancelled` (withdraw only if still pending) on the in-process bus, inside the same
   transaction. The queue stores only which O.T. and since when; it shows the current O.T. data via
   `work_orders.ExportableWorkOrders.search_among(ids, …)`. `python manage.py sync_export_queue`
   enqueues missing PENDING O.T.s and withdraws stale entries (safe to repeat). Frontend
-  `/exportacion-siigo` (menu "Exportación a Siigo"): filters, checkboxes kept across pages, the
-  "Generar archivo para Siigo" button disabled until 5d. 5d adds EXPORT_BATCH, the flat file, the
-  move to "Registrada en Siigo" and a "Lotes exportados" tab (re-download with a duplicate warning).
+  `/exportacion-odoo` (menu "Exportación a Odoo"), tab "Pendientes de exportar": filters,
+  checkboxes kept across pages.
+- **Export batches (5d, done; Juan Sebastián):** `POST /api/accounting-export/batches/`
+  `{work_order_ids}` → 201 batch; `GET batches/` (newest first, current status of each O.T.,
+  `cancelled_after_export` = "Anulada después de exportar"); `GET batches/<id>/file/` re-downloads
+  the stored file byte for byte. Export = `work_orders.ExportableWorkOrders.register_exported`
+  (locks the O.T. rows, all must be PENDING or 409 `WORK_ORDERS_NOT_PENDING` naming them, moves
+  them to REGISTERED_IN_ACCOUNTING and audits STATUS_CHANGED in the work orders module) → lock
+  the queue entries → `OrderFileFormatter` Strategy (`OdooSaleOrderXlsxFormatter`, openpyxl) →
+  `ExportBatch` (table `export_batch`, keeps `content`) → entries EXPORTED with `export_batch_id`
+  → audit EXPORTED (entity ExportBatch, O.T. numbers). Lock order work orders → queue, the same
+  as annulling, so they never deadlock. Max 200 O.T.s per batch. File
+  `IMSI-Odoo-YYYYMMDD-HHMMSS.xlsx` (Bogotá time), sheet "Pedidos de venta", row 1 = Odoo technical
+  names `partner_id` (customer name), `client_order_ref` (O.T.), `origin` (quotation),
+  `commitment_date` (agreed date, 12:00), `order_line/product_id` (code), `order_line/name`,
+  `order_line/product_uom_qty`; one row per item, order fields only on its first row; no prices.
+  Frontend: "Generar archivo para Odoo" (confirmation, then downloads), tab "Lotes exportados"
+  (re-download with the duplicate warning, import instructions).
 - Patterns required by NFR-05-01: Factory (`Entity.register`), Singleton (`lru_cache`
   composition roots, `event_bus`), Observer (events), Strategy (price estimators, dispatch-date
-  estimator).
+  estimator, export file formatter).
 
 ## Roadmap (implementation order chosen by the user: option D)
 
@@ -276,7 +300,7 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
 | 2 | Authentication + user accounts + audit (backend and frontend) | Done |
 | 3 | Customers and commercial notes | Done |
 | 4 | Chatbot (hybrid assistant) + Quotations | Done (4a public assistant, 4b admin review, 4c AI: free text + AI price estimate) |
-| 5 | Siigo export queue + Work orders | **In progress**: 5a work orders + numbering, 5b dispatch median + 360 history and 5c export queue done; next 5d (Siigo file) |
+| 5 | Odoo export queue + Work orders | Done (5a work orders + numbering, 5b dispatch median + 360 history, 5c export queue, 5d Odoo export batches) |
 | 6 | Backups + WhatsApp price history import | Pending |
 
 The first push/PR happens when the user decides (first release with several modules working).
@@ -284,9 +308,9 @@ The first push/PR happens when the user decides (first release with several modu
 ## Pending items — remind the user at the right time
 
 - **Sandbox restore adapter** (isolated environment for backup tests, FR-01-09): before step 6.
-- **Siigo Pyme flat-file format** (columns, CSV/TXT): ask the user before implementing the export.
-  Target version: **Siigo Pyme 10.1**, desktop (NFR-06-02 in the corrections README); still
-  missing the import option and a sample/template file of that version.
+- **Manual Odoo import test**: the team imports the first IMSI file into Odoo 20 Community (same
+  installer build). If Odoo rejects a column (e.g. a field renamed in Odoo 20), only
+  `OdooSaleOrderXlsxFormatter` changes; record the result in the corrections README (open item 2).
 - **Postman collection** (can be imported from `/api/schema/`): later.
 - **WhatsApp screenshots**: confirm whether the AI provider can read images (else OCR or `.txt`);
   the WhatsApp samples should also feed `PriceHistory.reference_samples` (AI price references).

@@ -39,7 +39,7 @@ backend/
 | `chatbot` | `/api/chatbot/` | Hybrid virtual assistant (guided steps + free-text proposals) | Done |
 | `quotations` | `/api/quotations/` | Price-range estimation, PDF, review, approval, rejection | Done |
 | `work_orders` | `/api/work-orders/` | O.T. generation from approved quotations and status lifecycle | Done (5a) |
-| `accounting_export` | `/api/accounting-export/` | Processing queue and Siigo Pyme 10.1 flat-file batches | Queue done (5c); file in 5d |
+| `accounting_export` | `/api/accounting-export/` | Export queue of work orders and Odoo export batches (sale order import `.xlsx`) | Done (5c queue, 5d batches) |
 | `backups` | `/api/backups/` | Scheduled full/differential backups, inventory, verified restore | Skeleton |
 | `price_history` | `/api/price-history/` | WhatsApp chat import and review of price samples | Skeleton |
 

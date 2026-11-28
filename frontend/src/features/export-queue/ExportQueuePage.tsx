@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router";
 
@@ -5,8 +6,16 @@ import { itemsText } from "@/features/work-orders/WorkOrdersPage";
 import { ApiError } from "@/shared/api/http";
 import { formatDateOnly } from "@/shared/format";
 import { Button } from "@/shared/ui/Button";
+import { ConfirmDialog } from "@/shared/ui/ConfirmDialog";
 
-import { useExportQueue, type QueueEntry, type QueueFilters } from "./api";
+import { BatchesTab } from "./BatchesTab";
+import {
+  downloadBatch,
+  useExportQueue,
+  useExportWorkOrders,
+  type QueueEntry,
+  type QueueFilters,
+} from "./api";
 
 const PAGE_SIZE = 20;
 const EMPTY: QueueFilters = { created_from: "", created_to: "", customer: "", number: "" };
@@ -18,11 +27,44 @@ const dateTime = new Intl.DateTimeFormat("es-CO", {
   timeZone: "America/Bogota",
 });
 
+type Tab = "queue" | "batches";
+
 /**
- * Siigo export queue (US 2.31 … US 2.33): work orders waiting to be exported. Generating the
- * flat file (and moving the O.T.s to "Registrada en Siigo") arrives with the Siigo format (5d).
+ * "Exportación a Odoo" (US 2.31 … US 2.34): the queue of work orders waiting to be exported and the
+ * exported batches. Generating the file moves the selected O.T.s to "Registrada en Odoo"; the file
+ * is imported by hand in Odoo (Ventas → Pedidos → Importar registros).
  */
 export function ExportQueuePage() {
+  const [tab, setTab] = useState<Tab>("queue");
+  const tabClass = (value: Tab) =>
+    `-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
+      tab === value ? "border-red-700 text-red-700" : "border-transparent text-slate-600 hover:text-slate-900"
+    }`;
+
+  return (
+    <div className="mx-auto max-w-7xl">
+      <div className="mb-4">
+        <p className="text-sm text-slate-500">Inicio / Exportación a Odoo</p>
+        <h1 className="text-2xl font-semibold">Exportación a Odoo</h1>
+        <p className="text-sm text-slate-600">
+          Seleccione las órdenes de trabajo que quiere incluir en el archivo para Odoo; al generarlo quedarán como
+          «Registrada en Odoo» y ya no se podrán editar.
+        </p>
+      </div>
+      <div role="tablist" className="mb-4 flex border-b border-slate-200">
+        <button role="tab" aria-selected={tab === "queue"} className={tabClass("queue")} onClick={() => setTab("queue")}>
+          Pendientes de exportar
+        </button>
+        <button role="tab" aria-selected={tab === "batches"} className={tabClass("batches")} onClick={() => setTab("batches")}>
+          Lotes exportados
+        </button>
+      </div>
+      {tab === "queue" ? <QueueTab onExported={() => setTab("batches")} /> : <BatchesTab />}
+    </div>
+  );
+}
+
+function QueueTab({ onExported }: { onExported: () => void }) {
   const [draft, setDraft] = useState<QueueFilters>(EMPTY);
   const [filters, setFilters] = useState<QueueFilters>(EMPTY);
   const [page, setPage] = useState(1);
@@ -52,16 +94,50 @@ export function ExportQueuePage() {
     setSelected(next);
   };
 
+  const queryClient = useQueryClient();
+  const exportOrders = useExportWorkOrders();
+  const [confirming, setConfirming] = useState(false);
+  const [notice, setNotice] = useState<{ tone: "ok" | "warn"; text: string } | null>(null);
+
+  const generate = async () => {
+    let batch;
+    try {
+      batch = await exportOrders.mutateAsync([...selected.keys()]);
+    } catch (err) {
+      // Exported or annulled by someone else meanwhile: show the current queue.
+      if (err instanceof ApiError && err.status === 409) {
+        void queryClient.invalidateQueries({ queryKey: ["export-queue"] });
+      }
+      throw err;
+    }
+    setSelected(new Map());
+    try {
+      await downloadBatch(batch);
+      setNotice({
+        tone: "ok",
+        text: `Se generó ${batch.file_name} con ${batch.work_orders.length} orden(es); ya están «Registrada en Odoo». Impórtelo en Odoo.`,
+      });
+    } catch {
+      setNotice({
+        tone: "warn",
+        text: `Se generó ${batch.file_name}, pero no se pudo descargar. Descárguelo desde «Lotes exportados».`,
+      });
+    }
+  };
+
   return (
-    <div className="mx-auto max-w-7xl">
-      <div className="mb-6">
-        <p className="text-sm text-slate-500">Inicio / Exportación a Siigo</p>
-        <h1 className="text-2xl font-semibold">Exportación a Siigo</h1>
-        <p className="text-sm text-slate-600">
-          Órdenes de trabajo pendientes de exportar. Seleccione las que quiere incluir en el archivo para Siigo
-          Pyme; al exportarlas quedarán como «Registrada en Siigo».
-        </p>
-      </div>
+    <div>
+      {notice && (
+        <div
+          role="status"
+          className={`mb-4 flex flex-wrap items-center justify-between gap-2 rounded-md p-3 text-sm ${
+            notice.tone === "ok" ? "bg-green-50 text-green-800" : "bg-amber-50 text-amber-900"
+          }`}
+        >
+          <span>{notice.text}</span>
+          <Button variant="secondary" onClick={onExported}>Ver lotes exportados</Button>
+        </div>
+      )}
 
       <form
         onSubmit={search}
@@ -105,14 +181,28 @@ export function ExportQueuePage() {
           {selected.size > 0 && (
             <Button variant="secondary" onClick={() => setSelected(new Map())}>Quitar selección</Button>
           )}
-          <Button disabled title="Disponible cuando se defina el formato de Siigo Pyme 10.1">
-            Generar archivo para Siigo
+          <Button disabled={selected.size === 0} onClick={() => setConfirming(true)}>
+            Generar archivo para Odoo
           </Button>
         </div>
       </div>
-      <p className="mb-4 text-xs text-slate-500">
-        La generación del archivo estará disponible cuando se defina el formato de importación de Siigo Pyme 10.1.
-      </p>
+
+      <ConfirmDialog
+        open={confirming}
+        title="Generar archivo para Odoo"
+        confirmLabel="Generar y descargar"
+        onConfirm={generate}
+        onClose={() => setConfirming(false)}
+      >
+        <p>
+          Se generará un archivo con {selected.size} orden{selected.size === 1 ? "" : "es"} de trabajo:{" "}
+          <span className="font-mono text-xs">{[...selected.values()].join(", ")}</span>.
+        </p>
+        <p className="mt-2">
+          Quedarán como «Registrada en Odoo», saldrán de la cola y ya no se podrán editar. Luego importe el archivo en
+          Odoo (Ventas → Pedidos → Importar registros).
+        </p>
+      </ConfirmDialog>
 
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
         <table className="w-full min-w-[900px] text-left text-sm">

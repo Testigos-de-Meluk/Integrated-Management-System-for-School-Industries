@@ -174,6 +174,16 @@ class DjangoWorkOrderRepository(WorkOrderRepository):
             )
         )
 
+    def many(self, work_order_ids: frozenset[UUID], *, lock: bool = False) -> list[WorkOrder]:
+        if not work_order_ids:
+            return []
+        queryset = WorkOrderModel.objects.filter(pk__in=work_order_ids)
+        if lock:
+            # Locks only the O.T. rows (``of=("self",)``), in a fixed order to avoid deadlocks.
+            list(queryset.select_for_update(of=("self",)).order_by("pk").values_list("pk"))
+        models = queryset.prefetch_related("items").order_by("created_at", "order_number")
+        return [_to_domain(m) for m in models]
+
     def active_for_quotation(self, quotation_id: UUID) -> WorkOrder | None:
         model = (
             WorkOrderModel.objects.prefetch_related("items")

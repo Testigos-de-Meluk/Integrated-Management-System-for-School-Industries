@@ -169,7 +169,8 @@ def test_reconcile_after_the_export_with_the_real_dispatch_date(admin, operator,
     )
     assert too_early.status_code == 409  # still Pendiente: no jumps
 
-    WorkOrderModel.objects.filter(pk=order["id"]).update(status="REGISTERED_IN_SIIGO")  # step 5d
+    # As the export does (step 5d):
+    WorkOrderModel.objects.filter(pk=order["id"]).update(status="REGISTERED_IN_ACCOUNTING")
     future = (TODAY + timedelta(days=1)).isoformat()
     assert (
         operator.post(

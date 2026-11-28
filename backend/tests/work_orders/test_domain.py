@@ -65,7 +65,7 @@ def test_generation_validates_items_and_the_agreed_date(overrides, field):
 
 def test_the_full_cycle_with_the_real_dispatch_date():
     work_order = order()
-    work_order.mark_registered_in_siigo()  # only the export does this
+    work_order.mark_registered_in_accounting()  # only the export does this
     assert work_order.was_exported and not work_order.is_editable
 
     with pytest.raises(ValidationError):
@@ -82,9 +82,9 @@ def test_no_jumps_between_statuses():
     work_order = order()
     with pytest.raises(InvalidWorkOrderTransition):
         work_order.reconcile(TODAY, TODAY)  # Pendiente → Conciliada is not allowed
-    work_order.mark_registered_in_siigo()
+    work_order.mark_registered_in_accounting()
     with pytest.raises(InvalidWorkOrderTransition):
-        work_order.mark_registered_in_siigo()
+        work_order.mark_registered_in_accounting()
 
 
 def test_only_pending_orders_can_be_edited():
@@ -92,7 +92,7 @@ def test_only_pending_orders_can_be_edited():
     work_order.update(SCHOOL, [item(5), item(7)], TODAY + timedelta(days=3), TODAY)
     assert [i.quantity for i in work_order.items] == [5, 7]
 
-    work_order.mark_registered_in_siigo()
+    work_order.mark_registered_in_accounting()
     with pytest.raises(WorkOrderNotEditable):
         work_order.update(SCHOOL, [item()], TODAY + timedelta(days=3), TODAY)
 
@@ -109,7 +109,7 @@ def test_an_unchanged_past_date_does_not_block_other_edits():
 def test_any_order_but_an_annulled_one_can_be_annulled_with_a_reason(exported):
     work_order = order()
     if exported:
-        work_order.mark_registered_in_siigo()
+        work_order.mark_registered_in_accounting()
         work_order.reconcile(TODAY, TODAY)
     with pytest.raises(ValidationError):
         work_order.cancel("  ")

@@ -49,6 +49,11 @@ class WorkOrderRepository(ABC):
     @abstractmethod
     def pending_ids(self) -> frozenset[UUID]: ...
 
+    @abstractmethod
+    def many(self, work_order_ids: frozenset[UUID], *, lock: bool = False) -> list[WorkOrder]:
+        """The O.T.s among ``work_order_ids``, oldest first. ``lock`` holds their rows until the
+        transaction ends, so two exports of the same O.T. cannot both succeed."""
+
 
 class WorkOrderNumberGenerator(ABC):
     """``OT-YYYYMMDD-NNNNN``: local creation date + global consecutive that never restarts."""

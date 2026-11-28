@@ -14,7 +14,7 @@ from django.db.models import Q
 class WorkOrderModel(models.Model):
     class Status(models.TextChoices):
         PENDING = "PENDING", "Pendiente"
-        REGISTERED_IN_SIIGO = "REGISTERED_IN_SIIGO", "Registrada en Siigo"
+        REGISTERED_IN_ACCOUNTING = "REGISTERED_IN_ACCOUNTING", "Registrada en Odoo"
         RECONCILED = "RECONCILED", "Conciliada"
         CANCELLED = "CANCELLED", "Anulada"
 
@@ -30,7 +30,7 @@ class WorkOrderModel(models.Model):
     customer_name = models.CharField(max_length=200)  # snapshot
     agreed_delivery_date = models.DateField()
     actual_dispatch_date = models.DateField(null=True, blank=True)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    status = models.CharField(max_length=30, choices=Status.choices, default=Status.PENDING)
     cancellation_reason = models.TextField(blank=True, default="")
     created_at = models.DateTimeField()
     created_by_id = models.UUIDField(null=True, blank=True)  # user_accounts module

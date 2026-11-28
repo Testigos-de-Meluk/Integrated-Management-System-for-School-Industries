@@ -1,4 +1,4 @@
-"""Siigo export queue (step 5c): fed by work order events, shows the current O.T. data."""
+"""Odoo export queue (step 5c): fed by work order events, shows the current O.T. data."""
 
 from datetime import UTC, datetime, timedelta
 from io import StringIO
@@ -32,7 +32,7 @@ def test_withdraw_only_affects_pending_entries():
     assert entry.withdraw(NOW) and entry.status is QueueStatus.WITHDRAWN
     assert not entry.withdraw(NOW)  # already withdrawn
     exported = QueueEntry(uuid4(), NOW, status=QueueStatus.EXPORTED)
-    assert not exported.withdraw(NOW)  # annulled after export: Siigo is fixed by hand
+    assert not exported.withdraw(NOW)  # annulled after export: Odoo is fixed by hand
 
 
 class MemoryQueue(QueueRepository):
@@ -54,6 +54,14 @@ class MemoryQueue(QueueRepository):
     def pending(self):
         return {k: e for k, e in self.entries.items() if e.is_pending}
 
+    def lock_for(self, work_order_ids):
+        return {k: e for k, e in self.entries.items() if k in work_order_ids}
+
+    def work_orders_of_batches(self, batch_ids):
+        return {
+            b: [k for k, e in self.entries.items() if e.export_batch_id == b] for b in batch_ids
+        }
+
 
 class NoWorkOrders(QueuedWorkOrders):
     def __init__(self, pending=frozenset()):
@@ -65,11 +73,17 @@ class NoWorkOrders(QueuedWorkOrders):
     def pending_ids(self):
         return self.pending
 
+    def views_of(self, work_order_ids):
+        return []
+
+    def register_exported(self, actor, work_order_ids):
+        return []
+
 
 def test_enqueue_is_idempotent_and_sync_repairs_the_queue():
     kept, missing, gone = uuid4(), uuid4(), uuid4()
     queue = MemoryQueue()
-    service = ExportQueueService(queue, NoWorkOrders(frozenset({kept, missing})), lambda: NOW)
+    service = ExportQueueService(queue, NoWorkOrders(frozenset({kept, missing})), clock=lambda: NOW)
     service.enqueue(kept)
     service.enqueue(kept)  # a repeated event never duplicates (US 2.30.4)
     service.enqueue(gone)
@@ -83,7 +97,7 @@ def test_enqueue_is_idempotent_and_sync_repairs_the_queue():
 
 
 def test_permission_and_date_range():
-    service = ExportQueueService(MemoryQueue(), NoWorkOrders(), lambda: NOW)
+    service = ExportQueueService(MemoryQueue(), NoWorkOrders(), clock=lambda: NOW)
     no_access = Actor.for_role(RoleType.OPERATOR, user_id=uuid4())
     object.__setattr__(no_access, "permissions", frozenset())
     with pytest.raises(PermissionDeniedError):
@@ -97,42 +111,6 @@ def test_permission_and_date_range():
 
 
 # --- Through the API, with the real event bus ---------------------------------------------------
-
-
-@pytest.fixture
-def admin(logged_in_client):
-    return logged_in_client(RoleType.ADMIN)
-
-
-@pytest.fixture
-def operator(logged_in_client):
-    return logged_in_client(RoleType.OPERATOR)
-
-
-@pytest.fixture
-def catalog(admin):
-    def create(code, name):
-        return admin.post(
-            "/api/products/", {"code": code, "name": name, "unit_of_measure": "Unidad"}, "json"
-        ).json()["id"]
-
-    return {"chair": create("SIL-001", "Silla escolar"), "desk": create("MES-002", "Mesa")}
-
-
-@pytest.fixture
-def customer(admin):
-    return admin.post(
-        "/api/customers/",
-        {
-            "customer_type": "LEGAL_ENTITY",
-            "tax_id": "800197268-4",
-            "name": "Colegio Los Robles SAS",
-            "address": "Calle 1 # 2-3",
-            "primary_phone": "6011234567",
-            "email": "compras@robles.edu.co",
-        },
-        "json",
-    ).json()
 
 
 def generate(admin, operator, catalog, customer):
@@ -200,7 +178,7 @@ def test_sync_command_adds_missing_pending_orders(admin, operator, catalog, cust
 @pytest.mark.django_db
 def test_exported_orders_are_not_in_the_queue(admin, operator, catalog, customer):
     order = generate(admin, operator, catalog, customer)
-    WorkOrderModel.objects.filter(pk=order["id"]).update(status="REGISTERED_IN_SIIGO")
+    WorkOrderModel.objects.filter(pk=order["id"]).update(status="REGISTERED_IN_ACCOUNTING")
     QueueEntryModel.objects.filter(work_order_id=order["id"]).update(status="EXPORTED")  # 5d
 
     assert operator.get(QUEUE).json()["count"] == 0

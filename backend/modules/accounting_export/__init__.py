@@ -1,1 +1,1 @@
-"""Accounting export: processing queue of approved quotations and Siigo Pyme flat-file batches."""
+"""Accounting export: queue of work orders and the batches of files imported into Odoo."""

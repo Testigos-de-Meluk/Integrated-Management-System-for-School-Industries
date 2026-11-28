@@ -1,8 +1,8 @@
-"""Siigo export queue (FR-02-16 … FR-02-18, step 5 decisions).
+"""Odoo export queue (FR-02-16 … FR-02-18, step 5 decisions).
 
-The queue holds **work orders**. An O.T. enters when it is generated, leaves when it is exported
-(step 5d) and is **withdrawn** — never deleted, so the trace of when it entered stays — if it is
-annulled before being exported. Withdrawn entries never show up in the queue.
+The queue holds **work orders**. An O.T. enters when it is generated, leaves when it is exported in
+a batch (step 5d) and is **withdrawn** — never deleted, so the trace of when it entered stays — if
+it is annulled before being exported. Withdrawn entries never show up in the queue.
 """
 
 from dataclasses import dataclass, field
@@ -13,7 +13,7 @@ from uuid import UUID, uuid4
 
 class QueueStatus(StrEnum):
     PENDING_EXPORT = "PENDING_EXPORT"  # "Pendiente de exportar"
-    EXPORTED = "EXPORTED"  # "Exportada" (step 5d)
+    EXPORTED = "EXPORTED"  # "Exportada": included in an export batch
     WITHDRAWN = "WITHDRAWN"  # "Retirada": annulled before export
 
 
@@ -37,9 +37,18 @@ class QueueEntry:
 
     def withdraw(self, now: datetime) -> bool:
         """The O.T. was annulled. Returns ``False`` if it had already been exported (or withdrawn):
-        an exported O.T. is annulled in Siigo by hand, the queue keeps its record."""
+        an exported O.T. is annulled in Odoo by hand, the queue keeps its record."""
         if not self.is_pending:
             return False
         self.status = QueueStatus.WITHDRAWN
         self.withdrawn_at = now
+        return True
+
+    def mark_exported(self, batch_id: UUID, now: datetime) -> bool:
+        """Included in the export batch ``batch_id``. ``False`` if it was not pending."""
+        if not self.is_pending:
+            return False
+        self.status = QueueStatus.EXPORTED
+        self.exported_at = now
+        self.export_batch_id = batch_id
         return True

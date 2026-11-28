@@ -191,7 +191,7 @@ erDiagram
         uuid created_by FK
         date agreed_delivery_date
         date actual_dispatch_date "Required when moving to RECONCILED (Conciliada); feeds the median"
-        work_order_status status "PENDING, REGISTERED_IN_SIIGO, RECONCILED, CANCELLED"
+        work_order_status status "PENDING, REGISTERED_IN_ACCOUNTING (Registrada en Odoo), RECONCILED, CANCELLED"
         text cancellation_reason "Required when cancelling"
         timestamptz created_at
     }
@@ -206,7 +206,10 @@ erDiagram
     EXPORT_BATCH {
         uuid id PK
         uuid created_by FK
-        varchar file_name
+        varchar created_by_name "Snapshot"
+        varchar file_name "IMSI-Odoo-YYYYMMDD-HHMMSS.xlsx"
+        varchar content_type
+        bytea content "Odoo sale order import file, kept to download again"
         timestamptz created_at
     }
 

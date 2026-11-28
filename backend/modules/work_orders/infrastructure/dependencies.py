@@ -7,6 +7,9 @@ from modules.products.infrastructure.dependencies import product_catalog
 from modules.quotations.infrastructure.dependencies import approved_quotations
 from modules.shared_kernel.infrastructure.audit.database_audit_logger import DatabaseAuditLogger
 from modules.shared_kernel.infrastructure.events.in_process_event_bus import event_bus
+from modules.work_orders.application.exportable_work_orders_service import (
+    ExportableWorkOrdersService,
+)
 from modules.work_orders.application.work_order_history_service import WorkOrderHistoryService
 from modules.work_orders.application.work_order_service import WorkOrderService
 from modules.work_orders.ports.inbound.exportable_work_orders import ExportableWorkOrders
@@ -33,9 +36,10 @@ def customer_work_orders() -> CustomerWorkOrders:
     return work_order_history()
 
 
+@lru_cache(maxsize=1)
 def exportable_work_orders() -> ExportableWorkOrders:
-    """For the accounting export module (Siigo queue)."""
-    return work_order_history()
+    """For the accounting export module (Odoo export queue and batches)."""
+    return ExportableWorkOrdersService(DjangoWorkOrderRepository(), DatabaseAuditLogger())
 
 
 @lru_cache(maxsize=1)

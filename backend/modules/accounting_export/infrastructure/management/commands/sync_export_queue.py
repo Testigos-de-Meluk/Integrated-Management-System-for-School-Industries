@@ -1,4 +1,4 @@
-"""Rebuilds the Siigo export queue from the work orders (step 5c decision).
+"""Rebuilds the Odoo export queue from the work orders (step 5c decision).
 
     docker compose exec backend python manage.py sync_export_queue
 
@@ -14,7 +14,7 @@ from modules.accounting_export.infrastructure.dependencies import export_queue_f
 
 
 class Command(BaseCommand):
-    help = "Adds missing 'Pendiente' work orders to the Siigo export queue (safe to repeat)."
+    help = "Adds missing 'Pendiente' work orders to the Odoo export queue (safe to repeat)."
 
     def handle(self, *args, **options) -> None:
         with transaction.atomic():

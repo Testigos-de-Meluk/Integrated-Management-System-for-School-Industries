@@ -8,7 +8,7 @@ class WorkOrderNotFound(NotFoundError):
 class WorkOrderNotEditable(ConflictError):
     default_message = (
         "Solo se puede editar una orden de trabajo en estado Pendiente: "
-        "una vez exportada a Siigo ya no se modifica."
+        "una vez exportada a Odoo ya no se modifica."
     )
     code = "WORK_ORDER_NOT_EDITABLE"
 
@@ -30,3 +30,17 @@ class ActiveWorkOrderExists(ConflictError):
 
 class InvalidWorkOrderItems(ValidationError):
     pass
+
+
+class WorkOrdersNotPending(ConflictError):
+    """Exporting O.T.s that someone else exported or annulled meanwhile (step 5d)."""
+
+    code = "WORK_ORDERS_NOT_PENDING"
+
+    def __init__(self, numbers: list[str]) -> None:
+        self.numbers = numbers
+        listed = ", ".join(numbers)
+        super().__init__(
+            "Estas órdenes de trabajo ya no están pendientes de exportar (otra persona las exportó "
+            f"o fueron anuladas): {listed}. Actualice la lista y vuelva a intentarlo."
+        )

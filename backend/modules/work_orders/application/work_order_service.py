@@ -88,7 +88,7 @@ def detail_view(order: WorkOrder) -> WorkOrderDetailView:
         created_at=order.created_at,
         created_by_name=order.created_by_name,
         can_edit=order.is_editable,
-        can_reconcile=order.status is WorkOrderStatus.REGISTERED_IN_SIIGO,
+        can_reconcile=order.status is WorkOrderStatus.REGISTERED_IN_ACCOUNTING,
         can_cancel=order.is_active,
         was_exported=order.was_exported,
     )

@@ -111,7 +111,7 @@ class WorkOrderDetailView:
     can_edit: bool
     can_reconcile: bool
     can_cancel: bool
-    was_exported: bool  # annulling it needs the "also annul it in Siigo" warning
+    was_exported: bool  # annulling it needs the "also annul it in Odoo" warning
 
 
 @dataclass(frozen=True, slots=True)
@@ -165,4 +165,4 @@ class WorkOrderManagement(ABC):
     def reconcile(
         self, actor: Actor, work_order_id: UUID, actual_dispatch_date: date
     ) -> WorkOrderDetailView:
-        """US 2.40: "Registrada en Siigo" → "Conciliada" with the real dispatch date."""
+        """US 2.40: "Registrada en Odoo" → "Conciliada" with the real dispatch date."""

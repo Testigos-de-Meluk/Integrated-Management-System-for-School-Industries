@@ -89,6 +89,10 @@ class MemoryWorkOrders(WorkOrderRepository):
     def pending_ids(self):
         return frozenset(o.id for o in self.items.values() if o.status.value == "PENDING")
 
+    def many(self, work_order_ids, *, lock=False):
+        found = [o for o in self.items.values() if o.id in work_order_ids]
+        return sorted(found, key=lambda o: (o.created_at, o.number))
+
 
 class Numbers(WorkOrderNumberGenerator):
     def __init__(self):
@@ -257,7 +261,7 @@ def test_edit_refuses_inactive_products_and_customers(service, deps):
 
 def test_exported_orders_are_read_only_and_reconcile_needs_the_real_date(service, deps):
     order = service.generate(OPERATOR, GenerateWorkOrderCommand(deps["with_customer"].id))
-    deps["repository"].items[order.id].mark_registered_in_siigo()  # what the export will do
+    deps["repository"].items[order.id].mark_registered_in_accounting()  # what the export will do
 
     with pytest.raises(WorkOrderNotEditable):
         service.update(

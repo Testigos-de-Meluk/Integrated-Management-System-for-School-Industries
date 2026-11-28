@@ -150,7 +150,7 @@ class WorkOrderCancelView(APIView):
 class WorkOrderReconcileView(APIView):
     @extend_schema(
         tags=TAG,
-        summary="Registrada en Siigo → Conciliada with the real dispatch date (US 2.40)",
+        summary="Registrada en Odoo → Conciliada with the real dispatch date (US 2.40)",
         request=ReconcileWorkOrderSerializer,
         responses=WorkOrderDetailSerializer,
     )

@@ -29,8 +29,8 @@ const dateTime = new Intl.DateTimeFormat("es-CO", {
   timeStyle: "short",
   timeZone: "America/Bogota",
 });
-const SIIGO_WARNING =
-  "Esta orden ya fue exportada a Siigo: al anularla aquí, anúlela también manualmente en Siigo.";
+const ODOO_WARNING =
+  "Esta orden ya fue exportada a Odoo: al anularla aquí, anúlela también manualmente en Odoo.";
 
 function messageOf(err: unknown, fallback: string): string {
   if (!(err instanceof ApiError)) return "No fue posible conectar con el servidor. Intente de nuevo.";
@@ -113,14 +113,14 @@ function Detail({
       </div>
 
       {notice && <Notice tone="success">{notice}</Notice>}
-      {order.status === "REGISTERED_IN_SIIGO" && (
+      {order.status === "REGISTERED_IN_ACCOUNTING" && (
         <Notice tone="muted">
-          Exportada a Siigo: ya no se puede editar. Cuando se despache, márquela como Conciliada con la fecha real.
+          Exportada a Odoo: ya no se puede editar. Cuando se despache, márquela como Conciliada con la fecha real.
         </Notice>
       )}
       {order.status === "PENDING" && (
         <Notice tone="muted">
-          Pendiente de exportar a Siigo. Puede editarla hasta que se genere su archivo de exportación.
+          Pendiente de exportar a Odoo. Puede editarla hasta que se genere su archivo de exportación.
         </Notice>
       )}
       {order.status === "CANCELLED" && (
@@ -142,12 +142,12 @@ function Detail({
         hint="Queda registrado en la auditoría. La anulación no se puede deshacer."
         confirmLabel="Anular orden de trabajo"
         danger
-        warning={order.was_exported ? SIIGO_WARNING : undefined}
+        warning={order.was_exported ? ODOO_WARNING : undefined}
         onConfirm={async (reason) => {
           await cancel.mutateAsync(reason);
           onSaved(
             order.was_exported
-              ? "Orden de trabajo anulada. Recuerde anularla también en Siigo."
+              ? "Orden de trabajo anulada. Recuerde anularla también en Odoo."
               : "Orden de trabajo anulada.",
           );
         }}

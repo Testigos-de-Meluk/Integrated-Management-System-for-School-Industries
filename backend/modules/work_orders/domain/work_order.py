@@ -2,12 +2,12 @@
 
 Cycle (corrections README, summary item 17):
 
-    PENDING ──export file──▶ REGISTERED_IN_SIIGO ──real dispatch date──▶ RECONCILED
+    PENDING ──export file──▶ REGISTERED_IN_ACCOUNTING ──real dispatch date──▶ RECONCILED
        │                            │                                        │
        └────────────── cancel (reason) ─ from any status but CANCELLED ──────┘
 
-Only a PENDING O.T. can be edited: once exported to Siigo it is read-only. "Registrada en Siigo"
-is set only by the export (``mark_registered_in_siigo``), never by hand. O.T.s carry no prices.
+Only a PENDING O.T. can be edited: once exported to Odoo it is read-only. "Registrada en Odoo"
+is set only by the export (``mark_registered_in_accounting``), never by hand. O.T.s carry no prices.
 """
 
 from dataclasses import dataclass, field
@@ -28,7 +28,7 @@ PAST_DATE = "La fecha acordada de entrega no puede estar en el pasado."
 
 class WorkOrderStatus(StrEnum):
     PENDING = "PENDING"  # "Pendiente"
-    REGISTERED_IN_SIIGO = "REGISTERED_IN_SIIGO"  # "Registrada en Siigo"
+    REGISTERED_IN_ACCOUNTING = "REGISTERED_IN_ACCOUNTING"  # "Registrada en Odoo"
     RECONCILED = "RECONCILED"  # "Conciliada"
     CANCELLED = "CANCELLED"  # "Anulada"
 
@@ -153,7 +153,7 @@ class WorkOrder:
 
     @property
     def was_exported(self) -> bool:
-        return self.status in (WorkOrderStatus.REGISTERED_IN_SIIGO, WorkOrderStatus.RECONCILED)
+        return self.status in (WorkOrderStatus.REGISTERED_IN_ACCOUNTING, WorkOrderStatus.RECONCILED)
 
     # --- Use cases ----------------------------------------------------------------------------
 
@@ -174,19 +174,19 @@ class WorkOrder:
         self.customer = customer
         self.items = items
 
-    def mark_registered_in_siigo(self) -> None:
+    def mark_registered_in_accounting(self) -> None:
         """Called by the export (step 5d), never by a user (FR-02-23 corrected)."""
         if self.status is not WorkOrderStatus.PENDING:
             raise InvalidWorkOrderTransition(
-                "Solo una orden de trabajo Pendiente puede quedar Registrada en Siigo."
+                "Solo una orden de trabajo Pendiente puede quedar Registrada en Odoo."
             )
-        self.status = WorkOrderStatus.REGISTERED_IN_SIIGO
+        self.status = WorkOrderStatus.REGISTERED_IN_ACCOUNTING
 
     def reconcile(self, actual_dispatch_date: date | None, today: date) -> None:
-        """US 2.40: Registrada en Siigo → Conciliada, with the real dispatch date."""
-        if self.status is not WorkOrderStatus.REGISTERED_IN_SIIGO:
+        """US 2.40: Registrada en Odoo → Conciliada, with the real dispatch date."""
+        if self.status is not WorkOrderStatus.REGISTERED_IN_ACCOUNTING:
             raise InvalidWorkOrderTransition(
-                "Solo una orden de trabajo Registrada en Siigo puede pasar a Conciliada."
+                "Solo una orden de trabajo Registrada en Odoo puede pasar a Conciliada."
             )
         if actual_dispatch_date is None:
             raise ValidationError.for_field(

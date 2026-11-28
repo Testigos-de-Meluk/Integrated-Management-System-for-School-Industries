@@ -85,7 +85,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: "/exportacion-siigo",
+        path: "/exportacion-odoo",
         element: (
           <RequirePermission permission="EXPORT_QUEUE_MANAGE">
             <ExportQueuePage />

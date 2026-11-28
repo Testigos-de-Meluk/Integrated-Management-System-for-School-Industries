@@ -3,18 +3,18 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 
 import { api, type Paginated } from "@/shared/api/http";
 
-export type WorkOrderStatus = "PENDING" | "REGISTERED_IN_SIIGO" | "RECONCILED" | "CANCELLED";
+export type WorkOrderStatus = "PENDING" | "REGISTERED_IN_ACCOUNTING" | "RECONCILED" | "CANCELLED";
 
 export const WORK_ORDER_STATUS_LABELS: Record<WorkOrderStatus, string> = {
   PENDING: "Pendiente",
-  REGISTERED_IN_SIIGO: "Registrada en Siigo",
+  REGISTERED_IN_ACCOUNTING: "Registrada en Odoo",
   RECONCILED: "Conciliada",
   CANCELLED: "Anulada",
 };
 
 export const WORK_ORDER_STATUS_STYLES: Record<WorkOrderStatus, string> = {
   PENDING: "bg-amber-50 text-amber-800",
-  REGISTERED_IN_SIIGO: "bg-sky-50 text-sky-800",
+  REGISTERED_IN_ACCOUNTING: "bg-sky-50 text-sky-800",
   RECONCILED: "bg-green-50 text-green-800",
   CANCELLED: "bg-slate-100 text-slate-600",
 };

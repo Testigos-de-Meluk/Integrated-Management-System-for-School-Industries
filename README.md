@@ -173,7 +173,7 @@ Integrated-Management-System-for-School-Industries/
 | `Architecture Diagram/Architecture_Diagram_Testigos_De_Meluk.drawio` | Editable software architecture diagram (draw.io). |
 | `Architecture Diagram/Architecture_Diagram_Testigos_De_Meluk.pdf` | Software architecture diagram in PDF format. |
 | `Business Model Processes/Big ones/` | BPMN models of the larger business processes: Quote Request and Approval, Work Order Management, and Customer Management. |
-| `Business Model Processes/Small ones/` | BPMN models of the smaller processes: Session Control, Role-Based Access Control, Automated Backup, Siigo Pyme Export, Product Catalog Management, and Customer Notes. |
+| `Business Model Processes/Small ones/` | BPMN models of the smaller processes: Session Control, Role-Based Access Control, Automated Backup, Siigo Pyme Export (now Odoo, see the corrections), Product Catalog Management, and Customer Notes. |
 | `Class Diagram/UML_Class_Diagrams_Testigos_de_Meluk.drawio` | Editable UML class diagrams (draw.io). |
 | `Mockups/` | Interface mockups: Backups, Catalog, Export Siigo, Login, Other views, Quotation, and Work orders. |
 | `Relational Database Model/Relational Database Model.mmd` | Editable relational database model (Mermaid). |
