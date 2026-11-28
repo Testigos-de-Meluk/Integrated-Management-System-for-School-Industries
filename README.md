@@ -13,6 +13,11 @@ This repository contains the deliverables developed by the **Testigos de Meluk**
 - **Department:** Department of Systems and Industrial Engineering
 - **Professor:** [Liliana Marcela Olarte Mesa](mailto:lmolartem@unal.edu.co)
 
+## Contributing
+
+Branch, commit and PR workflow: [`CONTRIBUTING.md`](CONTRIBUTING.md). It is a proposal pending
+team adoption; until then, the conventions in `CLAUDE.md` remain authoritative.
+
 ## Getting Started (local development)
 
 The whole system runs locally with **Docker Compose**: PostgreSQL, Redis, Mailpit, the Django API,
