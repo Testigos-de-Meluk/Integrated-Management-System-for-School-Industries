@@ -214,8 +214,10 @@ erDiagram
         uuid id PK
         uuid work_order_id FK, UK "Work order to export"
         uuid export_batch_id FK "Null until exported"
-        export_status export_status "PENDING_EXPORT, EXPORTED"
+        export_status export_status "PENDING_EXPORT, EXPORTED, WITHDRAWN (annulled before export)"
         timestamptz enqueued_at
+        timestamptz withdrawn_at "Nullable"
+        timestamptz exported_at "Nullable"
     }
 
     PRICE_IMPORT_BATCH {

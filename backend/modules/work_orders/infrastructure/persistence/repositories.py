@@ -20,6 +20,7 @@ from modules.work_orders.infrastructure.models import (
     WorkOrderItemModel,
     WorkOrderModel,
 )
+from modules.work_orders.ports.inbound.exportable_work_orders import ExportFilters
 from modules.work_orders.ports.inbound.work_order_management import WorkOrderFilters
 from modules.work_orders.ports.outbound.ports import WorkOrderNumberGenerator, WorkOrderRepository
 
@@ -143,6 +144,35 @@ class DjangoWorkOrderRepository(WorkOrderRepository):
             start : start + page_request.size
         ]
         return Page([_to_domain(m) for m in models], total, page_request)
+
+    def search_among(
+        self, work_order_ids: frozenset[UUID], filters: ExportFilters, page_request: PageRequest
+    ) -> Page[WorkOrder]:
+        queryset = WorkOrderModel.objects.filter(pk__in=work_order_ids)
+        if filters.number and (text := filters.number.strip()):
+            queryset = queryset.filter(order_number__icontains=text)
+        if filters.customer and (text := filters.customer.strip()):
+            queryset = queryset.filter(
+                Q(customer_name__icontains=text) | Q(customer_tax_id__icontains=text)
+            )
+        # ``__date`` uses the active time zone (America/Bogota): the local generation date.
+        if filters.created_from:
+            queryset = queryset.filter(created_at__date__gte=filters.created_from)
+        if filters.created_to:
+            queryset = queryset.filter(created_at__date__lte=filters.created_to)
+        total = queryset.count()
+        start = page_request.offset
+        models = queryset.prefetch_related("items").order_by("created_at", "order_number")[
+            start : start + page_request.size
+        ]
+        return Page([_to_domain(m) for m in models], total, page_request)
+
+    def pending_ids(self) -> frozenset[UUID]:
+        return frozenset(
+            WorkOrderModel.objects.filter(status=WorkOrderModel.Status.PENDING).values_list(
+                "pk", flat=True
+            )
+        )
 
     def active_for_quotation(self, quotation_id: UUID) -> WorkOrder | None:
         model = (

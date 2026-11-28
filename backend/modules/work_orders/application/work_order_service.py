@@ -21,7 +21,7 @@ from modules.shared_kernel.domain.pagination import Page, PageRequest
 from modules.shared_kernel.domain.security import Actor, Permission
 from modules.shared_kernel.ports.outbound.audit_logger import AuditLogger
 from modules.shared_kernel.ports.outbound.event_publisher import EventPublisher
-from modules.work_orders.domain.events import WorkOrderGenerated
+from modules.work_orders.domain.events import WorkOrderCancelled, WorkOrderGenerated
 from modules.work_orders.domain.exceptions import ActiveWorkOrderExists, WorkOrderNotFound
 from modules.work_orders.domain.work_order import (
     WorkOrder,
@@ -212,6 +212,9 @@ class WorkOrderService(WorkOrderManagement):
         order.cancel(reason)
         self._repository.update(order)
         self._log(AuditAction.CANCELLED, actor, order, before, order.cancellation_reason)
+        self._events.publish(
+            WorkOrderCancelled(work_order_id=order.id, number=order.number, occurred_at=self._now())
+        )
         return detail_view(order)
 
     def reconcile(

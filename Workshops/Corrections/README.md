@@ -122,7 +122,7 @@ They will be defined during development.
 | FR-02-13 | **Changed** | Approval requires a **final unit price for every item** and a dispatch date (suggested or manual). The system stores `final_unit_price`, `final_total`, `approved_at` and `approved_by`, and the official PDF uses the final prices. The audit entry records the estimated range and the final price (RN-M2-02). Final prices can be entered directly when approving (no prior modification needed). The 15-day validity of the **formal** quotation starts on the approval date. |
 | FR-02-14 | **Changed** | A modified unit price applies only to that quotation and becomes a data point for future estimations (US 2.28.3). |
 | FR-02-15 | Kept | "Rechazada" is final and immutable. Linking a registered customer is optional during review (suggested when the requester's NIT matches an active customer). The only change allowed after approval is linking a customer to an approved quotation that has none (needed by US 2.37). |
-| FR-02-16 | **Changed** | The queue holds **work orders**: an O.T. enters it automatically when it is generated (FR-02-20), with date, time and O.T. number, and only once. An O.T. annulled before being exported leaves the queue. |
+| FR-02-16 | **Changed** | The queue holds **work orders**: an O.T. enters it automatically when it is generated (FR-02-20), with date, time and O.T. number, and only once. An O.T. annulled before being exported leaves the queue: its entry is kept as **"Retirada"** (never deleted, so the trace of when it entered stays) and is not shown. The queue always shows the **current** data of each O.T. (an edit while "Pendiente" is visible at once). A maintenance command (`sync_export_queue`) adds any "Pendiente" O.T. that is missing (e.g. generated before the queue existed); it never duplicates. |
 | FR-02-17 | **Changed** | Lists the **work orders** waiting for export: O.T. number, source quotation, generation date, customer, items and agreed delivery date. Filters: date range, customer and O.T. number. No prices (they are not part of the O.T.). |
 | FR-02-18 | **Changed** | Generating the flat file (Siigo Pyme 10.1 layout, NFR-06-02) marks the selected **work orders** as exported and moves them to **"Registrada en Siigo"**; they leave the queue. Downloading the file is the end of the flow inside IMSI; loading it into Siigo is manual and out of scope. |
 | FR-02-19 | **Changed** | The list also shows the source quotation number. Status names are kept: Pendiente, Registrada en Siigo, Conciliada, Anulada. |
@@ -342,7 +342,7 @@ PostgreSQL as the single database.
 | Clients | The web clients are a React SPA (see [6.2](#62-frontend)). |
 | Dispatch history | The quotations module reads real dispatches through the work orders inbound port `DispatchHistory` (port `DispatchSamples` in quotations); `MedianDispatchDateEstimator` is the Strategy of FR-02-06. Business days and Colombian holidays live in the shared kernel (`/api/calendar/holidays/` for the screens). |
 | Customer 360 history | The customers module reads quotations (`CustomerQuotations`) and work orders (`CustomerWorkOrders`) through inbound ports; the profile shows them in two tabs, each paginated. |
-| Work orders → export queue | **Observer:** generating an O.T. publishes `WorkOrderGenerated`; the accounting export module subscribes and enqueues it. Exporting calls the work orders module (inbound port) to move the O.T.s to "Registrada en Siigo". |
+| Work orders → export queue | **Observer:** generating an O.T. publishes `WorkOrderGenerated` and annulling it publishes `WorkOrderCancelled`; the accounting export module subscribes to both (enqueue / withdraw). It reads the O.T. data through the work orders inbound port `ExportableWorkOrders` and only stores which O.T. is queued and since when. Exporting calls the work orders module (inbound port) to move the O.T.s to "Registrada en Siigo". |
 
 > **Why `SessionRepository`?** FR-01-05 (one active session) and FR-01-06 (15-minute inactivity) cannot be
 > enforced with stateless JWTs alone: a token stays valid until it expires. So every request must check that
@@ -360,7 +360,7 @@ The PNG mockups are not edited. When they conflict with this document, the follo
 | Login | "After three failed attempts ask the administrator" → the lock is temporary (15 min). |
 | Quotation | VAT and "Anticipo 30 %" labels. Everything else is kept (the 3-step form matches the hybrid assistant). |
 | Work orders | Prices, VAT, advance, balance and manufacturing specifications. "Generar O.T." is performed by the **Operador** from this screen (list of approved quotations without an active O.T.). "Conciliación" menu entry. Manual "Registrar en Siigo" action (it happens on export). Edit only for "Pendiente" O.T.s. |
-| Export Siigo | The rows are **work orders** (no amounts). Ignore steps 3–4 (manual load confirmation with Siigo reference). Generating the batch moves the O.T.s to "Registrada en Siigo". |
+| Export Siigo | The rows are **work orders** (no amounts). Ignore steps 3–4 (manual load confirmation with Siigo reference). Generating the batch moves the O.T.s to "Registrada en Siigo". Two tabs: "Pendientes de exportar" (the queue, with selection kept across pages and filters) and "Lotes exportados" (each batch with date, user and O.T.s; its file can be downloaded again with the warning "cargarlo de nuevo en Siigo puede duplicar los registros"). Menu entry "Exportación a Siigo". |
 | Catalog | "Precios comerciales" subtitle and "Lista vigente" filter (no official prices). The internal historical range column is kept, visible to internal users only. |
 | Other views | Reconciliation screen, risk concentration alert, "Cambio de precio" log example, and dashboard items about reconciliation. |
 | Backups | Kept. |
@@ -380,7 +380,7 @@ The corrected model is in [`Updated-Files/Relational_Database_Model.mmd`](Update
 | `QUOTATION` | New `quotation_number` (`COT-YYYYMMDD-NNNNN`), `final_total`, `approved_at`, `approved_by` (plus an `approved_by_name` snapshot). The stored estimated and final totals let the review tray filter by amount (US 2.26.4). |
 | `QUOTATION_ITEM` | New `final_unit_price`. |
 | `WORK_ORDER` | `order_number` becomes `varchar` `OT-YYYYMMDD-NNNNN`. New `quotation_approved_at` (snapshot used for the dispatch lead time). New `quotation_id` (FK, not null; **unique among non-cancelled O.T.s**, a partial unique index) and `actual_dispatch_date`. |
-| `PROCESSING_QUEUE_ENTRY` | `quotation_id` → **`work_order_id`** (FK, unique). |
+| `PROCESSING_QUEUE_ENTRY` | `quotation_id` → **`work_order_id`** (FK, unique). Status adds `WITHDRAWN` ("Retirada": annulled before export); new `withdrawn_at` and `exported_at`. |
 | Numbering | One global counter per document type (quotation, work order) that never restarts. |
 | `SESSION` | `access_token_id` is not stored (the access token carries the session id). Termination reasons add `PASSWORD_CHANGED` and `TOKEN_REUSE` (replayed refresh token). |
 | `TOTP_ENROLLMENT` | The TOTP secret is stored encrypted (Fernet) in `encrypted_secret`; `last_used_step` prevents reusing a code. The QR image is generated on demand, not stored. |

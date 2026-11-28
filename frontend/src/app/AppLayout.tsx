@@ -21,6 +21,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/clientes", label: "Clientes", permission: "CUSTOMER_MANAGE" },
   { to: "/cotizaciones", label: "Cotizaciones", permission: "QUOTATION_MANAGE" },
   { to: "/ordenes-trabajo", label: "Órdenes de trabajo", permission: "WORK_ORDER_MANAGE" },
+  { to: "/exportacion-siigo", label: "Exportación a Siigo", permission: "EXPORT_QUEUE_MANAGE" },
   { to: "/cuentas", label: "Cuentas y permisos", permission: "USER_MANAGE" },
 ];
 

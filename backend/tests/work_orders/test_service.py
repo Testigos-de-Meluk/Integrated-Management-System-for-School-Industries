@@ -82,6 +82,13 @@ class MemoryWorkOrders(WorkOrderRepository):
         found = [o for o in self.items.values() if o.customer.id == customer_id]
         return Page(found, len(found), page_request)
 
+    def search_among(self, work_order_ids, filters, page_request):
+        found = [o for o in self.items.values() if o.id in work_order_ids]
+        return Page(found, len(found), page_request)
+
+    def pending_ids(self):
+        return frozenset(o.id for o in self.items.values() if o.status.value == "PENDING")
+
 
 class Numbers(WorkOrderNumberGenerator):
     def __init__(self):

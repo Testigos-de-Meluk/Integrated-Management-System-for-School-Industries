@@ -3,6 +3,7 @@ import { createBrowserRouter } from "react-router";
 import { AppLayout } from "@/app/AppLayout";
 import { RequireAuth, RequirePermission } from "@/app/guards";
 import { LoginPage } from "@/features/auth/LoginPage";
+import { ExportQueuePage } from "@/features/export-queue/ExportQueuePage";
 import { CustomerProfilePage } from "@/features/customers/CustomerProfilePage";
 import { CustomersPage } from "@/features/customers/CustomersPage";
 import { ProductsPage } from "@/features/products/ProductsPage";
@@ -80,6 +81,14 @@ export const router = createBrowserRouter([
         element: (
           <RequirePermission permission="WORK_ORDER_MANAGE">
             <WorkOrderDetailPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: "/exportacion-siigo",
+        element: (
+          <RequirePermission permission="EXPORT_QUEUE_MANAGE">
+            <ExportQueuePage />
           </RequirePermission>
         ),
       },

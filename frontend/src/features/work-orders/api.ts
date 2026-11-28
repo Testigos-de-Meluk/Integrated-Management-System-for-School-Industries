@@ -135,6 +135,7 @@ function useWorkOrderMutation<TInput>(request: (input: TInput) => Promise<WorkOr
       // The quotation may have got its customer linked; the 360 history lists quotations.
       void queryClient.invalidateQueries({ queryKey: ["quotations"] });
       void queryClient.invalidateQueries({ queryKey: ["customers"] });
+      void queryClient.invalidateQueries({ queryKey: ["export-queue"] }); // generated / annulled
     },
   });
 }

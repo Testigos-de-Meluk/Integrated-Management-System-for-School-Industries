@@ -251,6 +251,18 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
   `ModulesCommercialHistory` adapter over `CustomerQuotations` and `work_orders.CustomerWorkOrders`);
   links only where the user has the permission. Quotations and customers import the work orders
   composition root lazily (work orders imports both at module level).
+- **Export queue (5c, done):** `accounting_export` module, `GET /api/accounting-export/queue/`
+  (`EXPORT_QUEUE_MANAGE`; filters generation date range, customer, O.T. number; oldest first).
+  `QueueEntry` (table `processing_queue_entry`, one row per O.T., `work_order_id` unique) with
+  status PENDING_EXPORT / EXPORTED (5d) / WITHDRAWN; entries are never deleted. Fed in
+  `AccountingExportConfig.ready()` by `WorkOrderGenerated` (enqueue, idempotent) and
+  `WorkOrderCancelled` (withdraw only if still pending) on the in-process bus, inside the same
+  transaction. The queue stores only which O.T. and since when; it shows the current O.T. data via
+  `work_orders.ExportableWorkOrders.search_among(ids, …)`. `python manage.py sync_export_queue`
+  enqueues missing PENDING O.T.s and withdraws stale entries (safe to repeat). Frontend
+  `/exportacion-siigo` (menu "Exportación a Siigo"): filters, checkboxes kept across pages, the
+  "Generar archivo para Siigo" button disabled until 5d. 5d adds EXPORT_BATCH, the flat file, the
+  move to "Registrada en Siigo" and a "Lotes exportados" tab (re-download with a duplicate warning).
 - Patterns required by NFR-05-01: Factory (`Entity.register`), Singleton (`lru_cache`
   composition roots, `event_bus`), Observer (events), Strategy (price estimators, dispatch-date
   estimator).
@@ -264,7 +276,7 @@ case: `actor.require(Permission.X)` → domain → repository → `AuditLogger` 
 | 2 | Authentication + user accounts + audit (backend and frontend) | Done |
 | 3 | Customers and commercial notes | Done |
 | 4 | Chatbot (hybrid assistant) + Quotations | Done (4a public assistant, 4b admin review, 4c AI: free text + AI price estimate) |
-| 5 | Siigo export queue + Work orders | **In progress**: 5a work orders + numbering and 5b dispatch median + 360 history done; next 5c (queue), 5d (Siigo file) |
+| 5 | Siigo export queue + Work orders | **In progress**: 5a work orders + numbering, 5b dispatch median + 360 history and 5c export queue done; next 5d (Siigo file) |
 | 6 | Backups + WhatsApp price history import | Pending |
 
 The first push/PR happens when the user decides (first release with several modules working).
@@ -297,8 +309,6 @@ The first push/PR happens when the user decides (first release with several modu
 - Audit-log screen: a `LOGIN_FAILED` / `ACCOUNT_LOCKED` row with a USER actor means "this account
   was targeted", not that its owner acted; make that clear in the UI.
 - Frontend bundle > 500 kB: split by route later.
-- The export queue subscribes to `WorkOrderGenerated` (5c), not to `QuotationApproved` (which keeps
-  no subscriber).
 - **Dispatch-date estimation options** (later; corrections open item 8): let the user choose the
   history window (fixed at 365 days today) and evaluate estimators besides the median.
 

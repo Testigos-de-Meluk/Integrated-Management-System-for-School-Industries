@@ -6,6 +6,7 @@ from uuid import UUID
 
 from modules.shared_kernel.domain.pagination import Page, PageRequest
 from modules.work_orders.domain.work_order import WorkOrder
+from modules.work_orders.ports.inbound.exportable_work_orders import ExportFilters
 from modules.work_orders.ports.inbound.work_order_management import WorkOrderFilters
 
 
@@ -38,6 +39,15 @@ class WorkOrderRepository(ABC):
     @abstractmethod
     def for_customer(self, customer_id: UUID, page_request: PageRequest) -> Page[WorkOrder]:
         """Newest first."""
+
+    @abstractmethod
+    def search_among(
+        self, work_order_ids: frozenset[UUID], filters: ExportFilters, page_request: PageRequest
+    ) -> Page[WorkOrder]:
+        """The O.T.s among ``work_order_ids`` matching the filters, oldest first."""
+
+    @abstractmethod
+    def pending_ids(self) -> frozenset[UUID]: ...
 
 
 class WorkOrderNumberGenerator(ABC):

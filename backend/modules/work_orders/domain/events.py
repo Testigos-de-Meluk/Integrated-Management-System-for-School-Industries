@@ -13,3 +13,11 @@ class WorkOrderGenerated(DomainEvent):
     work_order_id: UUID
     number: str
     quotation_id: UUID
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class WorkOrderCancelled(DomainEvent):
+    """An annulled O.T. leaves the export queue if it was not exported yet (step 5c)."""
+
+    work_order_id: UUID
+    number: str

@@ -9,6 +9,7 @@ from modules.shared_kernel.infrastructure.audit.database_audit_logger import Dat
 from modules.shared_kernel.infrastructure.events.in_process_event_bus import event_bus
 from modules.work_orders.application.work_order_history_service import WorkOrderHistoryService
 from modules.work_orders.application.work_order_service import WorkOrderService
+from modules.work_orders.ports.inbound.exportable_work_orders import ExportableWorkOrders
 from modules.work_orders.ports.inbound.work_order_history import (
     CustomerWorkOrders,
     DispatchHistory,
@@ -29,6 +30,11 @@ def dispatch_history() -> DispatchHistory:
 
 
 def customer_work_orders() -> CustomerWorkOrders:
+    return work_order_history()
+
+
+def exportable_work_orders() -> ExportableWorkOrders:
+    """For the accounting export module (Siigo queue)."""
     return work_order_history()
 
 

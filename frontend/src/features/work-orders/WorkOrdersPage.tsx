@@ -38,7 +38,7 @@ export function todayIso(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota" }).format(new Date());
 }
 
-export function itemsText(items: WorkOrderItem[], limit = 2): string {
+export function itemsText(items: Pick<WorkOrderItem, "description" | "quantity">[], limit = 2): string {
   const shown = items.slice(0, limit).map((i) => `${i.description} × ${i.quantity}`);
   const rest = items.length - limit;
   return rest > 0 ? `${shown.join(", ")} y ${rest} más` : shown.join(", ");
