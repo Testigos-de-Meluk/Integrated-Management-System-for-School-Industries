@@ -13,7 +13,7 @@
 - No AI attribution in commits or PR descriptions (`Co-Authored-By: Claude...`,
   "Generated with..." are forbidden).
 - Commit only when the task asks for it.
-- When a teammate works on Carlos's computer, use that teammate's GitHub identity only for
+- When a teammate works on the shared computer, use that teammate's GitHub identity only for
   that command; see `CLAUDE.md` for the table.
 
 ## Proposed branch model
